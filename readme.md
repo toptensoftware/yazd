@@ -14,6 +14,17 @@ YAZD supports the following:
 * Data segments are listed 1 DB byte per line with ASCII character in comments.
 
 
+## Download
+
+Download here:
+
+* <https://raw.github.com/toptensoftware/yazd/master/yazd.zip>
+
+Requires:
+
+* Windows and .NET 4.0 or later
+* Linux/OSX with Mono 2.8 or later (not tested, should work)
+
 ## Usage
 
 	yazd source.bin [destination.asm] [options] [@responsefile]
