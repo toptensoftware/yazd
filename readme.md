@@ -11,6 +11,7 @@ YAZD supports the following:
 * Can generate reference listings to all external addresses and I/O ports.
 * Can highlight all word literals (use to help find other memory address references).
 * Can generate plain text, or hyperlinked HTML output files.
+* Handles references to addresses not aligned with instruction (eg: self modifying code)
 * Data segments are listed 1 DB byte per line with ASCII character in comments.
 
 
@@ -70,22 +71,22 @@ Typical source mode output:
 	        ORG     0900h
 
 	        ; Entry Point
-	L0900   LD      A,0Ah
+	L0900:  LD      A,0Ah
 	        OUT     (0Ch),A
 	        LD      A,2Fh           ; '/'
 	        OUT     (0Dh),A
 	        LD      HL,0F800h
 	        LD      C,80h
-	L090D   LD      E,C
+	L090D:  LD      E,C
 	        LD      D,03h
-	L0910   XOR     A
+	L0910;  XOR     A
 	        BIT     0,E
 	        JR      Z,L0917 
 	        OR      0F0h
-	L0917   BIT     1,E
+	L0917:  BIT     1,E
 	        JR      Z,L091D 
 	        OR      0Fh
-	L091D   LD      B,05h
+	L091D:  LD      B,05h
 	        LD      (HL),A
 	        INC     HL
 	        DJNZ    L091F   
@@ -99,7 +100,7 @@ Typical source mode output:
 	        JR      NZ,L090D 
 	        JP      L1042
 
-	L0932   PUSH    BC
+	L0932:  PUSH    BC
 	        LD      C,A
 	        LD      B,A
 	        LD      A,12h
@@ -112,13 +113,13 @@ Typical source mode output:
 
 Unreachable addresses are automatically rendered as DB directives:
 
-	L102E   LD      DE,1037h
+	L102E:  LD      DE,1037h
 	        PUSH    DE
 	        PUSH    DE
 	        PUSH    DE
 	        JP      L1000
 
-	L1037   DB      3Eh             ; '>'
+	L1037:  DB      3Eh             ; '>'
 	        DB      01h
 	        DB      0F5h
 	        DB      0DBh
@@ -130,7 +131,7 @@ Unreachable addresses are automatically rendered as DB directives:
 	        DB      0F1h
 	        DB      0C9h
 
-	L1042   DI
+	L1042:  DI
 	        LD      SP,8000h
 	        CALL    L0BF0
 	        CALL    L0A6E
@@ -140,18 +141,18 @@ The `--xref` option, causes the referencing locations of any label to also be in
 
 
 	        ; Referenced from 09BEh
-	L09C4   LD      (HL),8Ch
+	L09C4:  LD      (HL),8Ch
 	        JR      L09CE
 
 	        ; Referenced from 09BAh
-	L09C8   LD      (HL),0B0h
+	L09C8:  LD      (HL),0B0h
 	        JR      L09CE
 
 	        ; Referenced from 09B6h
-	L09CC   LD      (HL),80h
+	L09CC:  LD      (HL),80h
 
 	        ; Referenced from 09C2h, 09CAh, 09C6h
-	L09CE   INC     A
+	L09CE:  INC     A
 	        CALL    L0FB2
 	        AND     03h
 	        ADD     HL,DE
@@ -160,18 +161,26 @@ The `--xref` option, causes the referencing locations of any label to also be in
 	        LD      B,40h           ; '@'
 	        CP      03h
 
+If an instruction references a memory address that not aligned with the start of an instruction, its
+disassembly is updated to use the instruction's label with an offset.  This usually occurs with self
+modifying code and helps to produce a listing that can be directly re-assembled.
+
+	        LD      (L0BED+1),A     ; reference not aligned to instruction
+	L0BED:  SET     3,(HL)
+
+
 In listing mode (`--lst`), the address and byte code is included on the left:
 
 	                                        ; Entry Point
-	0900: 3E 0A                      L0900  LD      A,0Ah
+	0900: 3E 0A                      L0900: LD      A,0Ah
 	0902: D3 0C                             OUT     (0Ch),A
 	0904: 3E 2F                             LD      A,2Fh   ; '/'
 	0906: D3 0D                             OUT     (0Dh),A
 	0908: 21 00 F8                          LD      HL,0F800h
 	090B: 0E 80                             LD      C,80h
-	090D: 59                         L090D  LD      E,C
+	090D: 59                         L090D: LD      E,C
 	090E: 16 03                             LD      D,03h
-	0910: AF                         L0910  XOR     A
+	0910: AF                         L0910: XOR     A
 
 Listing mode also causes the generation of reference information, including references to external memory addresses:
 

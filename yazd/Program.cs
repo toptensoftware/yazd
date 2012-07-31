@@ -398,12 +398,24 @@ namespace yazd
 
 				if (ref_addr.HasValue)
 				{
-					Disassembler.Instruction target;
-					if (instructions.TryGetValue(ref_addr.Value, out target))
+					for (int stepback = 0; stepback < 6; stepback++)
 					{
-						if (target.referencedFrom == null)
-							target.referencedFrom = new List<Disassembler.Instruction>();
-						target.referencedFrom.Add(i.Value);
+						Disassembler.Instruction target;
+						if (instructions.TryGetValue(ref_addr.Value-stepback, out target))
+						{
+							if (target.referencedFrom == null)
+								target.referencedFrom = new List<Disassembler.Instruction>();
+							target.referencedFrom.Add(i.Value);
+
+							if (stepback != 0)
+							{
+								// patch the original instruction
+								i.Value.Asm = i.Value.Asm.Replace(Disassembler.FormatAddr(ref_addr.Value), Disassembler.FormatAddr(target.addr) + "+" + stepback.ToString());
+								i.Value.Comment = "reference not aligned to instruction";
+							}
+
+							break;
+						}
 					}
 				}
 			}
@@ -495,7 +507,10 @@ namespace yazd
 				// Work out label
 				string label = "";
 				if (i.entryPoint || i.referencedFrom != null || (prev != null && !prev.next_addr_1.HasValue))
+				{
 					label = Disassembler.FormatAddr(i.addr, false);
+					label += ":";
+				}
 
 				// Write the disassembled instruction
 				w.Write("{0}\t{1}", label, i.Asm.Replace(" ", "\t"));

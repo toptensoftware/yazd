@@ -661,7 +661,7 @@ namespace yazd
 			new OpCode( "NEG"               ,  8 ,  0 ), /* 54 */
 			new OpCode( "RETN"              , 14 ,  0 , OpCodeFlags.Returns), /* 55 */
 			new OpCode( "IM 1"              ,  8 ,  0 ), /* 56 */
-			new OpCode( "LD_A_I"            ,  9 ,  0 ), /* 57 */
+			new OpCode( "LD A,I"            ,  9 ,  0 ), /* 57 */
 			new OpCode( "IN E,(C)"          , 12 ,  0 ), /* 58 */
 			new OpCode( "OUT (C),E"         , 12 ,  0 ), /* 59 */
 			new OpCode( "ADC HL,DE"         , 15 ,  0 ), /* 5A */
@@ -669,7 +669,7 @@ namespace yazd
 			new OpCode( "NEG"               ,  8 ,  0 ), /* 5C */
 			new OpCode( "RETI"              , 14 ,  0 , OpCodeFlags.Returns), /* 5D */
 			new OpCode( "IM 2"              ,  8 ,  0 ), /* 5E */
-			new OpCode( "LD_A_R"            ,  9 ,  0 ), /* 5F */
+			new OpCode( "LD A,R"            ,  9 ,  0 ), /* 5F */
 			new OpCode( "IN H,(C)"          , 12 ,  0 ), /* 60 */
 			new OpCode( "OUT (C),H"         , 12 ,  0 ), /* 61 */
 			new OpCode( "SBC HL,HL"         , 15 ,  0 ), /* 62 */
