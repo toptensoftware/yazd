@@ -1,0 +1,14 @@
+build
+bin
+obj
+Release
+Debug
+*.sdf
+*.pdb
+*.user
+*.suo
+*.swp
+*.swo
+*.ncb
+*.vshost.exe
+*.vshost.exe.manifest
