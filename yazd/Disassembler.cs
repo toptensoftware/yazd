@@ -4,6 +4,9 @@ using System.Linq;
 using System.Text;
 using System.IO;
 
+// Ported and modified from http://z80ex.sourceforge.net/
+
+
 namespace yazd
 {
 	class Disassembler
@@ -45,11 +48,28 @@ namespace yazd
 		public static ushort LabelledRangeLow = 0;
 		public static ushort LabelledRangeHigh = 0;
 		public static bool LowerCase = false;
+		public static bool HtmlMode = false;
+		public static bool ShowRelativeOffsets = false;
 
-		public static string FormatAddr(ushort addr)
+		public static string FormatAddr(ushort addr, bool link=true, bool prefix=true)
 		{
 			if (addr >= LabelledRangeLow && addr < LabelledRangeHigh)
-				return string.Format("L{0:X4}", addr);
+			{
+				if (prefix)
+				{
+					if (HtmlMode && link)
+						return string.Format("<a href=\"#L{0:X4}\">L{0:X4}</a>", addr);
+					else
+						return string.Format("L{0:X4}", addr);
+				}
+				else
+				{
+					if (HtmlMode && link)
+						return string.Format("<a href=\"#L{0:X4}\">{0:X4}</a>", addr);
+					else
+						return string.Format("{0:X4}", addr);
+				}
+			}
 			else
 				return FormatWord(addr);
 		}
@@ -159,13 +179,16 @@ namespace yazd
 									disp_u = readByte();
 								var disp = (disp_u & 0x80) != 0 ? -(((~disp_u) & 0x7f) + 1) : disp_u;
 
-								if (disp > 0)
+								if (ShowRelativeOffsets)
 								{
-									i.Comment = string.Format("+{0}", disp);
-								}
-								else
-								{
-									i.Comment = string.Format("{0}", disp);
+									if (disp > 0)
+									{
+										i.Comment = string.Format("+{0}", disp);
+									}
+									else
+									{
+										i.Comment = string.Format("{0}", disp);
+									}
 								}
 
 								if (ch == '$')

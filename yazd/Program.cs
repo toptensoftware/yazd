@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.IO;
+using System.Diagnostics;
 
 namespace yazd
 {
@@ -18,6 +19,9 @@ namespace yazd
 		bool _lst = false;
 		bool _lowerCase = false;
 		bool _markWordRefs = false;
+		bool _reloffs = false;
+		bool _htmlMode = false;
+		bool _autoOpen = false;
 		List<int> _entryPoints = new List<int>();
 
 		int _addrSpaceStart;
@@ -132,9 +136,21 @@ namespace yazd
 						_lowerCase = true;
 						break;
 
+					case "reloffs":
+						_reloffs = true;
+						break;
+
 					case "mwr":
 					case "markwordrefs":
 						_markWordRefs = true;
+						break;
+
+					case "html":
+						_htmlMode = true;
+						break;
+
+					case "open":
+						_autoOpen = true;
 						break;
 
 					default:
@@ -173,39 +189,69 @@ namespace yazd
 		public void ShowLogo()
 		{
 			System.Version v = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
-			Console.WriteLine("yazd v{0} - Z80 Disassembler", v);
+			Console.WriteLine("yazd v{0} - Yet Another Z80 Disassembler", v);
 			Console.WriteLine("Copyright (C) 2012 Topten Software. All Rights Reserved.");
+			Console.WriteLine("Disassembler engine based on http://z80ex.sourceforge.net/");
+
 			Console.WriteLine("");
 		}
 
 		public void ShowHelp()
 		{
-			Console.WriteLine("usage: yazd source.bin destination.asm [options]");
+			Console.WriteLine("usage: yazd source.bin [destination.asm] [options] [@responsefile]");
 			Console.WriteLine();
 
 			Console.WriteLine("Options:");
+			Console.WriteLine("  --addr:N               Z-80 base address of first byte after header, default=0x0000");
+			Console.WriteLine("  --start:N              Z-80 address to disassemble from, default=addr");
+			Console.WriteLine("  --end:N                Z-80 address to stop at, default=eof");
+			Console.WriteLine("  --len:N                Number of bytes to disassemble (instead of --end)");
+			Console.WriteLine("  --entry:N              Specifies an entry point (see below)");
+			Console.WriteLine("  --xref                 Include referenced locations of labels");
+			Console.WriteLine("  --lst                  Generate a listing file (more detail, can't be assembled)");
+			Console.WriteLine("  --html                 Generates a HTML file, with hyperlinked references");
+			Console.WriteLine("  --open                 Automatically opens the generated file with default associated app");
+			Console.WriteLine("  --lowercase|lc         Render in lowercase");
+			Console.WriteLine("  --markwordrefs|mwr     Highlight with a comment literal word values (as they may be addresses)");
+			Console.WriteLine("  --reloffs              Show the offset of relative address mode instructions");
 			Console.WriteLine("  --header:N             Skip N header bytes at start of file");
-			Console.WriteLine("  --addr:N               Z-80 base address (of first byte after header)");
-			Console.WriteLine("  --start:N              Z-80 address to disassemble from");
-			Console.WriteLine("  --end:N                Z-80 address to stop at");
-			Console.WriteLine("  --len:N                or, number of bytes to disassamble");
-			Console.WriteLine("  --xref                 include referenced locations of labels");
-			Console.WriteLine("  --lst                  generate a listing file (more detail, can't be assembled)");
-			Console.WriteLine("  --lowercase|lc         render mnemonics in lowercase");
-			Console.WriteLine("  --markwordrefs|mwr     highlight literal word values that may be an address with a comment");
 			Console.WriteLine("  --help                 Show these help instruction");
 			Console.WriteLine("  --v                    Show version information");
 
 			Console.WriteLine();
-			Console.WriteLine("Response file containing arguments can be specified with @ prefix on file name");
+			Console.WriteLine("Numeric arguments can be in decimal (no prefix) or hex if prefixed with '0x'.");
 
-			Console.WriteLine("");
+			Console.WriteLine();
+			Console.WriteLine("If one or more --entry arguments are specified (recommended), the file is disassembled by ");
+			Console.WriteLine("following the code paths from those entry points.  All unvisited regions will be rendered ");
+			Console.WriteLine("as 'DB' directives.");
+			Console.WriteLine();
+			Console.WriteLine("If the --entry argument is not specified, the file is disassembled from top to bottom.");
+
+			Console.WriteLine();
+			Console.WriteLine("Output is sent to stdout if no destination file specified.");
+
+			Console.WriteLine();
+			Console.WriteLine("Response file containing arguments can be specified using the @ prefix");
+
+			Console.WriteLine();
+			Console.WriteLine("Example:");
+			Console.WriteLine("    yazd --addr:0x0400 --entry:0x1983 -lst robotf.bin robotf.lst");
+			Console.WriteLine();
 		}
 
 		public int Run(string[] args)
 		{
 			// Process command line
-			ProcessArgs(args);
+			if (!ProcessArgs(args))
+				return 0;
+
+			if (_inputFile == null)
+			{
+				ShowLogo();
+				ShowHelp();
+				return 7;
+			}
 
 			// Open input file
 			var code = System.IO.File.ReadAllBytes(_inputFile);
@@ -228,6 +274,8 @@ namespace yazd
 			Disassembler.LabelledRangeLow = (ushort)_start;
 			Disassembler.LabelledRangeHigh = (ushort)(_start + _len);
 			Disassembler.LowerCase = _lowerCase;
+			Disassembler.HtmlMode = _htmlMode;
+			Disassembler.ShowRelativeOffsets = _reloffs;
 
 			// Disassemble
 			var instructions = new Dictionary<int, Disassembler.Instruction>();
@@ -360,26 +408,54 @@ namespace yazd
 				}
 			}
 
-			// Write out the "ORG" directive
-			if (sorted.Count > 0 && !_lst)
+			TextWriter targetWriter = Console.Out;
+			if (_outputFile != null)
 			{
-				Console.WriteLine("\n\tORG\t{0}\n", Disassembler.FormatWord(sorted[0].addr));
+				targetWriter = new StreamWriter(_outputFile);
 			}
 
-			TabbedTextWriter w = new TabbedTextWriter(Console.Out);
-			if (_lst)
+			TextWriter w;
+
+			if (_htmlMode)
 			{
-				w.TabStops = new int[] { 32, 40, 48, 56, 64 };
+				w = targetWriter;
 			}
 			else
 			{
-				w.TabStops = new int[] { 8, 16, 32 };
+				w = new TabbedTextWriter(targetWriter);
+				if (_lst)
+				{
+					((TabbedTextWriter)w).TabStops = new int[] { 32, 40, 48, 56, 64 };
+				}
+				else
+				{
+					((TabbedTextWriter)w).TabStops = new int[] { 8, 16, 32 };
+				}
+			}
+
+			if (_htmlMode)
+			{
+				w.WriteLine("<html>");
+				w.WriteLine("<head>");
+				w.WriteLine("</head>");
+				w.WriteLine("<body>");
+				w.WriteLine("<pre><code>");
+			}
+
+
+			// Write out the "ORG" directive
+			if (sorted.Count > 0 && !_lst)
+			{
+				w.WriteLine("\n\tORG\t{0}\n", Disassembler.FormatWord(sorted[0].addr));
 			}
 
 			// List it
 			Disassembler.Instruction prev = null;
 			foreach (var i in sorted)
 			{
+				if (_htmlMode)
+					w.Write("<a name=\"L{0:X4}\"></a>", i.addr);
+
 				// Include cross references?
 				if (_xref && i.referencedFrom != null)
 				{
@@ -390,16 +466,16 @@ namespace yazd
 					}
 
 					if (_lst)
-						w.Write("\t");
+						w.Write("{0}\t", new string(' ', 23));
 
 					w.WriteLine("\t; Referenced from {0}",
-							string.Join(", ", i.referencedFrom.Select(x => Disassembler.FormatWord(x.addr)).ToList()));
+							string.Join(", ", i.referencedFrom.Select(x => Disassembler.FormatAddr(x.addr, true, false)).ToList()));
 				}
 
 				if (i.entryPoint)
 				{
 					if (_lst)
-						w.Write("\t");
+						w.Write("{0}\t", new string(' ', 23));
 					w.WriteLine("\t; Entry Point");
 				}
 
@@ -411,22 +487,28 @@ namespace yazd
 						var data = code[i.addr + j - _baseAddr - _header];
 						w.Write(" {0:X2}", data);
 					}
+
+					w.Write(new string(' ', 3 * (6 - i.bytes)));
 					w.Write("\t ");
 				}
 
 				// Work out label
 				string label = "";
 				if (i.entryPoint || i.referencedFrom != null || (prev != null && !prev.next_addr_1.HasValue))
-					label = Disassembler.FormatAddr(i.addr);
+					label = Disassembler.FormatAddr(i.addr, false);
 
 				// Write the disassembled instruction
 				w.Write("{0}\t{1}", label, i.Asm.Replace(" ", "\t"));
 
 				// Write out an optional comment
 				if (i.Comment != null)
-					w.WriteLine("\t; {0}", i.Comment);
+					w.Write("\t; {0}", i.Comment);
+
+				if (_htmlMode)
+					w.WriteLine("</a>");
 				else
 					w.WriteLine();
+
 
 				// If this instruction doesn't continue on, insert a blank line
 				if (!i.next_addr_1.HasValue)
@@ -438,122 +520,142 @@ namespace yazd
 				prev = i;
 			}
 
-			if (!_lst)
-				return 0;
-
-			// Build a list of all possible address references
-			Dictionary<int, AddressInfo> addressInfos = new Dictionary<int,AddressInfo>();
-			Dictionary<int, PortInfo> portInfos = new Dictionary<int, PortInfo>();
-			foreach (var i in sorted)
+			if (_lst)
 			{
-				// Does this instruction reference a word value?
-				if (i.word_val.HasValue)
+				// Build a list of all possible address references
+				Dictionary<int, AddressInfo> addressInfos = new Dictionary<int, AddressInfo>();
+				Dictionary<int, PortInfo> portInfos = new Dictionary<int, PortInfo>();
+				foreach (var i in sorted)
 				{
-					AddressInfo ai;
-					if (!addressInfos.TryGetValue(i.word_val.Value, out ai))
+					// Does this instruction reference a word value?
+					if (i.word_val.HasValue)
 					{
-						ai = new AddressInfo(i.word_val.Value);
-						addressInfos.Add(ai.addr, ai);
+						AddressInfo ai;
+						if (!addressInfos.TryGetValue(i.word_val.Value, out ai))
+						{
+							ai = new AddressInfo(i.word_val.Value);
+							addressInfos.Add(ai.addr, ai);
+						}
+
+						if ((i.opCode.flags & OpCodeFlags.RefAddr) != 0)
+						{
+							// Known referenced data address
+							ai.DataReferences.Add(i);
+						}
+
+						if ((i.opCode.flags & OpCodeFlags.Jumps) != 0)
+						{
+							// Known referenced code address
+							ai.CodeReferences.Add(i);
+						}
+
+						if ((i.opCode.flags & (OpCodeFlags.Jumps | OpCodeFlags.RefAddr)) == 0)
+						{
+							// Potential address
+							ai.PotentialReferences.Add(i);
+						}
 					}
 
-					if ((i.opCode.flags & OpCodeFlags.RefAddr)!=0)
+					// Is it a port reference?
+					if (i.opCode != null && (i.opCode.flags & OpCodeFlags.PortRef) != 0)
 					{
-						// Known referenced data address
-						ai.DataReferences.Add(i);
-					}
+						// Which port (-1, referenced through a register)
+						int port = -1;
+						if (i.byte_val.HasValue)
+							port = i.byte_val.Value;
 
-					if ((i.opCode.flags & OpCodeFlags.Jumps) !=0)
-					{
-						// Known referenced code address
-						ai.CodeReferences.Add(i);
-					}
+						// Get the port info
+						PortInfo pi;
+						if (!portInfos.TryGetValue(port, out pi))
+						{
+							pi = new PortInfo(port);
+							portInfos.Add(port, pi);
+						}
 
-					if ((i.opCode.flags & (OpCodeFlags.Jumps | OpCodeFlags.RefAddr)) == 0)
-					{
-						// Potential address
-						ai.PotentialReferences.Add(i);
+						pi.References.Add(i);
 					}
 				}
 
-				// Is it a port reference?
-				if (i.opCode != null && (i.opCode.flags & OpCodeFlags.PortRef) != 0)
+				if (w is TabbedTextWriter)
+					((TabbedTextWriter)w).TabStops = new int[] { 8, 16, 24, 32 };
+
+				// Build a list of all external references
+				var extRefs = addressInfos.Values.Where(x => x.addr < _start || x.addr >= _start + _len).OrderBy(x => x.addr);
+				foreach (var r in extRefs)
 				{
-					// Which port (-1, referenced through a register)
-					int port = -1;
-					if (i.byte_val.HasValue)
-						port = i.byte_val.Value;
-					
-					// Get the port info
-					PortInfo pi;
-					if (!portInfos.TryGetValue(port, out pi))
+					if (r.DataReferences.Count > 0 || r.CodeReferences.Count > 0)
 					{
-						pi = new PortInfo(port);
-						portInfos.Add(port, pi);
+						w.WriteLine("\nreferences to external address {0}:", Disassembler.FormatAddr((ushort)r.addr, true, false));
+
+						foreach (var i in (r.DataReferences.Concat(r.CodeReferences).Concat(r.PotentialReferences)).OrderBy(x => x.addr))
+						{
+							w.WriteLine("\t{0} {1}", Disassembler.FormatAddr(i.addr, true, false), i.Asm);
+						}
+
+					}
+				}
+
+				foreach (var r in addressInfos.Values.Where(x => (x.addr >= _start && x.addr < _start + _len) && x.PotentialReferences.Count > 0).OrderBy(x => x.addr))
+				{
+					w.WriteLine("\npossible references to internal address {0}:", Disassembler.FormatAddr((ushort)r.addr, true, false));
+					ListPotentialAddresses(w, r);
+				}
+
+				foreach (var r in addressInfos.Values.Where(x => (x.addr < _start || x.addr >= _start + _len) && x.PotentialReferences.Count > 0).OrderBy(x => x.addr))
+				{
+					w.WriteLine("\npossible references to external address {0}:", Disassembler.FormatAddr((ushort)r.addr, true, false));
+					ListPotentialAddresses(w, r);
+				}
+
+				foreach (var r in portInfos.Values.OrderBy(x => x.port))
+				{
+					if (r.port == -1)
+					{
+						w.WriteLine("\nport references through a register:");
+					}
+					else
+					{
+						w.WriteLine("\nreferences to port {0}", Disassembler.FormatByte((byte)r.port));
 					}
 
-					pi.References.Add(i);
+					foreach (var i in r.References.OrderBy(x => x.opCode.mnemonic[0]).ThenBy(x => x.addr))
+					{
+						w.WriteLine("\t{0} {1}", Disassembler.FormatAddr(i.addr, true, false), i.Asm);
+					}
+
 				}
 			}
 
-			w.TabStops = new int[] { 8, 16, 24, 32 };
-
-			// Build a list of all external references
-			var extRefs = addressInfos.Values.Where(x => x.addr < _start || x.addr >= _start + _len).OrderBy(x=>x.addr);
-			foreach (var r in extRefs)
+			if (_htmlMode)
 			{
-				if (r.DataReferences.Count > 0 || r.CodeReferences.Count > 0)
-				{ 
-					w.WriteLine("\nreferences to external address {0:X4}:", r.addr);
-					
-					foreach (var i in (r.DataReferences.Concat(r.CodeReferences).Concat(r.PotentialReferences)).OrderBy(x=>x.addr))
-					{
-						w.WriteLine("\t{0:X4} {1}", i.addr, i.Asm);
-					}
-
-				}
-			}
-
-			foreach (var r in addressInfos.Values.Where(x => (x.addr >= _start && x.addr < _start + _len) && x.PotentialReferences.Count > 0).OrderBy(x => x.addr))
-			{
-				w.WriteLine("\npossible references to internal address {0:X4}:", r.addr);
-				ListPotentialAddresses(w, r);
-			}
-
-			foreach (var r in addressInfos.Values.Where(x => (x.addr < _start || x.addr >= _start + _len) && x.PotentialReferences.Count > 0).OrderBy(x => x.addr))
-			{
-				w.WriteLine("\npossible references to external address {0:X4}:", r.addr);
-				ListPotentialAddresses(w, r);
-			}
-
-			foreach (var r in portInfos.Values.OrderBy(x => x.port))
-			{
-				if (r.port == -1)
-				{
-					w.WriteLine("\nport references through a register:");
-				}
-				else
-				{
-					w.WriteLine("\nreferences to port {0}", Disassembler.FormatByte((byte)r.port));
-				}
-
-				foreach (var i in r.References.OrderBy(x=>x.opCode.mnemonic[0]).ThenBy(x => x.addr))
-				{
-					w.WriteLine("\t{0:X4} {1}", i.addr, i.Asm);
-				}
-
+				w.WriteLine("</code></pre>");
+				w.WriteLine("</body>");
+				w.WriteLine("</head>");
 			}
 
 
+			// Close file
+			w.Close();
+			if (_outputFile != null)
+			{
+				targetWriter.Close();
+			}
+
+			// Open the file for browsing?
+			if (_autoOpen && _outputFile!=null)
+			{
+				Process.Start(_outputFile);
+			}
 
 
 			return 0;
 		}
 
-		private static void ListPotentialAddresses(TabbedTextWriter w, AddressInfo r)
+		private static void ListPotentialAddresses(TextWriter w, AddressInfo r)
 		{
 			foreach (var i in r.PotentialReferences.OrderBy(x => x.addr))
 			{
-				w.WriteLine("\t{0:X4} {1}", i.addr, i.Asm);
+				w.WriteLine("\t{0} {1}", Disassembler.FormatAddr(i.addr, true, false), i.Asm);
 			}
 
 			bool bFirstOtherRef = true;
@@ -563,7 +665,7 @@ namespace yazd
 					w.WriteLine("\t----------");
 				bFirstOtherRef = false;
 
-				w.WriteLine("\t{0:X4} {1}", i.addr, i.Asm);
+				w.WriteLine("\t{0} {1}", Disassembler.FormatAddr(i.addr, true, false), i.Asm);
 			}
 		}
 
@@ -612,3 +714,4 @@ namespace yazd
 		}
 	}
 }
+
