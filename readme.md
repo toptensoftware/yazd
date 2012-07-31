@@ -79,7 +79,7 @@ Typical source mode output:
 	        LD      C,80h
 	L090D:  LD      E,C
 	        LD      D,03h
-	L0910;  XOR     A
+	L0910:  XOR     A
 	        BIT     0,E
 	        JR      Z,L0917 
 	        OR      0F0h
