@@ -699,13 +699,11 @@ namespace yazd
 			{
 				return new Program().Run(args);
 			}
-				/*
 			catch (InvalidOperationException x)
 			{
 				Console.WriteLine("{0}", x.Message);
 				return 7;
 			}
-				 */
 			catch (IOException x)
 			{
 				Console.WriteLine("File Error - {0}", x.Message);
