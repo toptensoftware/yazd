@@ -116,7 +116,8 @@ the listing making it easier to understand.
 	        RRCA
 	        RRCA
 
-Unreachable addresses are automatically rendered as DB directives:
+Unreachable addresses are automatically detected and rendered as DB directives when the `--entry` argument
+is used.  If something is incorrectly detected as data instead of code, just add an extra `--entry` parameter;
 
 	L0A46:  DEC     HL
 	        CALL    L0FB2
