@@ -278,7 +278,7 @@ namespace yazd
 			Disassembler.ShowRelativeOffsets = _reloffs;
 
 			// Disassemble
-			var instructions = new Dictionary<int, Disassembler.Instruction>();
+			var instructions = new Dictionary<int, Instruction>();
 			if (_entryPoints.Count > 0)
 			{
 				var pendingCodePaths = new List<int>();
@@ -347,7 +347,7 @@ namespace yazd
 					var data = code[j - _baseAddr - _header];
 
 					// Get the byte
-					var instruction = new Disassembler.Instruction();
+					var instruction = new Instruction();
 					if (data >= 0x20 && data <= 0x7f)
 						instruction.Comment = string.Format("'{0}'", (char)data);
 					instruction.addr = (ushort)j;
@@ -400,11 +400,11 @@ namespace yazd
 				{
 					for (int stepback = 0; stepback < 6; stepback++)
 					{
-						Disassembler.Instruction target;
+						Instruction target;
 						if (instructions.TryGetValue(ref_addr.Value-stepback, out target))
 						{
 							if (target.referencedFrom == null)
-								target.referencedFrom = new List<Disassembler.Instruction>();
+								target.referencedFrom = new List<Instruction>();
 							target.referencedFrom.Add(i.Value);
 
 							if (stepback != 0)
@@ -454,6 +454,10 @@ namespace yazd
 				w.WriteLine("<pre><code>");
 			}
 
+			// Analyse call graph
+			var cg = new CallGraphAnalyzer(instructions, sorted);
+			Dictionary<int, Proc> procs = cg.Analyse();
+
 
 			// Write out the "ORG" directive
 			if (sorted.Count > 0 && !_lst)
@@ -462,9 +466,15 @@ namespace yazd
 			}
 
 			// List it
-			Disassembler.Instruction prev = null;
+			Instruction prev = null;
 			foreach (var i in sorted)
 			{
+				// Blank line after data blocks
+				if (prev != null && prev.opCode == null && i.opCode != null)
+				{
+					w.WriteLine();
+				}
+
 				if (_htmlMode)
 					w.Write("<a name=\"L{0:X4}\"></a>", i.addr);
 
@@ -489,6 +499,13 @@ namespace yazd
 					if (_lst)
 						w.Write("{0}\t", new string(' ', 23));
 					w.WriteLine("\t; Entry Point");
+				}
+
+				if (procs.ContainsKey(i.addr))
+				{
+					if (_lst)
+						w.Write("{0}\t", new string(' ', 23));
+					w.WriteLine("\t; --- START PROC {0} ---", Disassembler.FormatAddr(i.addr, false, true));
 				}
 
 				if (_lst)
@@ -639,6 +656,61 @@ namespace yazd
 					}
 
 				}
+
+				// Dump all procs
+				w.WriteLine("\nProcedures ({0}):", procs.Count);
+				w.WriteLine("  Proc  Length  References Dependants");
+				foreach (var p in procs.Values.OrderBy(x=>x.firstInstruction.addr))
+				{
+					w.WriteLine("  {0}  {1:X4}   {2,10} {3,10}", Disassembler.FormatAddr(p.firstInstruction.addr, true, true), p.lengthInBytes, p.firstInstruction.referencedFrom == null ? 0 : p.firstInstruction.referencedFrom.Count, p.dependants.Count);
+				}
+
+				// Dump call graph
+				w.WriteLine("\nCall Graph:");
+
+				List<int> CallStack = new List<int>();
+				Action<int> DumpCallGraph = null;
+				DumpCallGraph = delegate(int addr)
+				{
+					// Display the proc address, indented
+					w.Write("{0}{1}", new String(' ', CallStack.Count * 2), Disassembler.FormatAddr((ushort)addr, true, true));
+
+					if (CallStack.Count == 0)
+					{
+						w.Write(" - Entry Point");
+					}
+
+					// Is it a recursive call?
+					if (CallStack.Contains(addr))
+					{
+						w.WriteLine(" - Recursive");
+						return;
+					}
+
+					// Is it external?
+					Proc p;
+					if (!procs.TryGetValue(addr, out p))
+					{
+						w.WriteLine(" - External");
+						return;
+					}
+
+					// Dump dependants
+					w.WriteLine();
+					CallStack.Add(addr);
+					foreach (var d in p.dependants)
+					{
+						DumpCallGraph(d);
+					}
+					CallStack.RemoveAt(CallStack.Count - 1);
+				};
+
+				foreach (var ep in _entryPoints.OrderBy(x => x))
+				{
+					// Get the proc's entry point
+					DumpCallGraph(ep);
+				}
+
 			}
 
 			if (_htmlMode)
@@ -691,7 +763,7 @@ namespace yazd
 				this.port = port;
 			}
 			public int port;
-			public List<Disassembler.Instruction> References = new List<Disassembler.Instruction>();
+			public List<Instruction> References = new List<Instruction>();
 		}
 
 		class AddressInfo
@@ -701,9 +773,9 @@ namespace yazd
 				this.addr = addr;
 			}
 			public int addr;
-			public List<Disassembler.Instruction> CodeReferences = new List<Disassembler.Instruction>();
-			public List<Disassembler.Instruction> DataReferences = new List<Disassembler.Instruction>();
-			public List<Disassembler.Instruction> PotentialReferences = new List<Disassembler.Instruction>();
+			public List<Instruction> CodeReferences = new List<Instruction>();
+			public List<Instruction> DataReferences = new List<Instruction>();
+			public List<Instruction> PotentialReferences = new List<Instruction>();
 		}
 
 

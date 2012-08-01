@@ -17,6 +17,7 @@ namespace yazd
 		Restarts = 0x0008,	// Instruction jumps to restart address
 		RefAddr = 0x0010,	// References a literal address
 		PortRef = 0x0020,	// IN or OUT instruction
+		Call = 0x0040,
 	}
 
 	public class OpCode
@@ -40,6 +41,9 @@ namespace yazd
 
 				if (mnemonic.StartsWith("IN ") || mnemonic.StartsWith("OUT "))
 					this.flags |= OpCodeFlags.PortRef;
+
+				if (mnemonic.StartsWith("CALL ") || mnemonic.StartsWith("OUT "))
+					this.flags |= OpCodeFlags.Call;
 			}
 		}
 	}

@@ -43,8 +43,11 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="CallGraphAnalyzer.cs" />
     <Compile Include="Disassembler.cs" />
+    <Compile Include="Instruction.cs" />
     <Compile Include="OpCodes.cs" />
+    <Compile Include="Proc.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="TabbedTextWriter.cs" />
