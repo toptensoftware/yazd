@@ -260,6 +260,6 @@ and a call graph.  Entry points, external routines and recursive routines are hi
 	      L0AB4
 	        L102E
 	          L1000
-	            L0A6E - Recusive
+	            L0A51 - Recusive
 	        L0FB2
 	        L0B93
