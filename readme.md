@@ -75,7 +75,7 @@ the listing making it easier to understand.
 
 	        ; Entry Point
 	        ; --- START PROC L0900 ---
-L0900:  LD      A,0Ah
+	L0900:  LD      A,0Ah
 	        OUT     (0Ch),A
 	        LD      A,2Fh           ; '/'
 	        OUT     (0Dh),A
