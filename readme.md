@@ -8,7 +8,7 @@ YAZD supports the following:
 * Code path analysis can usually tell the difference between code and data.
 * Generates labelled assembly language listings.
 * Can also generate more detailed listing files with byte code and assembly source.
-* Can detects procedure boundaries and generate call graphs
+* Can detect procedure boundaries and generate call graphs
 * Can generate reference listings to all external addresses and I/O ports.
 * Can highlight all word literals (use to help find other memory address references).
 * Can generate plain text, or hyperlinked HTML output files.
