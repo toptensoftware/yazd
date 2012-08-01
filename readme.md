@@ -8,6 +8,7 @@ YAZD supports the following:
 * Code path analysis can usually tell the difference between code and data.
 * Generates labelled assembly language listings.
 * Can also generate more detailed listing files with byte code and assembly source.
+* Can detects procedure boundaries and generate call graphs
 * Can generate reference listings to all external addresses and I/O ports.
 * Can highlight all word literals (use to help find other memory address references).
 * Can generate plain text, or hyperlinked HTML output files.
@@ -66,12 +67,15 @@ Example:
 
 ## Example Output
 
-Typical source mode output:
+Typical source mode output.  Note that YAZD is normally smart enough to tell the
+difference between local labels and procedure boundaries.  This helps divide up
+the listing making it easier to understand.
 
 	        ORG     0900h
 
 	        ; Entry Point
-	L0900:  LD      A,0Ah
+	        ; --- START PROC L0900 ---
+L0900:  LD      A,0Ah
 	        OUT     (0Ch),A
 	        LD      A,2Fh           ; '/'
 	        OUT     (0Dh),A
@@ -100,6 +104,7 @@ Typical source mode output:
 	        JR      NZ,L090D 
 	        JP      L1042
 
+	        ; --- START PROC L0932 ---
 	L0932:  PUSH    BC
 	        LD      C,A
 	        LD      B,A
@@ -113,29 +118,18 @@ Typical source mode output:
 
 Unreachable addresses are automatically rendered as DB directives:
 
-	L102E:  LD      DE,1037h
-	        PUSH    DE
-	        PUSH    DE
-	        PUSH    DE
-	        JP      L1000
+	L0A46:  DEC     HL
+	        CALL    L0FB2
+	        DEC     A
+	        AND     03h
+	        DJNZ    L0A3D
+	        RET
 
-	L1037:  DB      3Eh             ; '>'
-	        DB      01h
-	        DB      0F5h
-	        DB      0DBh
-	        DB      02h
-	        DB      0CBh
-	        DB      0F7h
-	        DB      0D3h
-	        DB      02h
-	        DB      0F1h
-	        DB      0C9h
+	L0A50:  DB      00h
 
-	L1042:  DI
-	        LD      SP,8000h
-	        CALL    L0BF0
-	        CALL    L0A6E
-	        CALL    L0A51
+	        ; --- START PROC L0A51 ---
+	L0A51:  LD      A,(L0A5F)
+	        OR      A
 
 The `--xref` option, causes the referencing locations of any label to also be included:
 
@@ -172,6 +166,7 @@ modifying code and helps to produce a listing that can be directly re-assembled.
 In listing mode (`--lst`), the address and byte code is included on the left:
 
 	                                        ; Entry Point
+									        ; --- START PROC L0900 ---
 	0900: 3E 0A                      L0900: LD      A,0Ah
 	0902: D3 0C                             OUT     (0Ch),A
 	0904: 3E 2F                             LD      A,2Fh   ; '/'
@@ -225,7 +220,7 @@ Possible references to external addresses are listed separately since they're le
 	        0E17 LD DE,0F000h
 	        1485 LD HL,0F000h
 
-And finally, port references are also listed:
+Port references are also listed:
 
 	references to port 02h
 	        0C83 IN A,(02h)
@@ -240,3 +235,30 @@ And finally, port references are also listed:
 	references to port 0Bh
 	        094F OUT (0Bh),A
 	        096A OUT (0Bh),A
+
+The listing file also includes a few metrics on all the located procedures:
+
+	Procedures (96):
+	  Proc  Length  References Dependants
+	  L0900  0032            0          1
+	  L0932  003D            5          0
+	  L096F  0032            2          0
+	  L09A1  00AF            6          1
+	  L0A51  000E            6          3
+	  L0A60  000E            1          0
+
+and a call graph.  Entry points, external routines and recursive routines are highighted:
+
+	Call Graph:
+	L0900 - Entry Point
+	  L1042
+	    L0BF0
+	    L0A6E
+	      8009h - External
+	    L0A51
+	      L0AB4
+	        L102E
+	          L1000
+	            L0A6E - Recusive
+	        L0FB2
+	        L0B93
