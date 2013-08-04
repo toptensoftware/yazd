@@ -286,7 +286,7 @@ namespace yazd
 			new OpCode( "AND #"             ,  7 ,  0 ), /* E6 */
 			new OpCode( "RST 0x20"          , 11 ,  0 , OpCodeFlags.Restarts), /* E7 */
 			new OpCode( "RET PE"            ,  5 , 11 , OpCodeFlags.Returns | OpCodeFlags.Continues), /* E8 */
-			new OpCode( "JP HL"             ,  4 ,  0 , OpCodeFlags.Jumps), /* E9 */
+			new OpCode( "JP (HL)"             ,  4 ,  0 , OpCodeFlags.Jumps), /* E9 */
 			new OpCode( "JP PE,@"           , 10 ,  0 , OpCodeFlags.Jumps | OpCodeFlags.Continues), /* EA */
 			new OpCode( "EX DE,HL"          ,  4 ,  0 ), /* EB */
 			new OpCode( "CALL PE,@"         , 10 , 17 , OpCodeFlags.Jumps | OpCodeFlags.Continues), /* EC */
@@ -1073,7 +1073,7 @@ namespace yazd
 			new OpCode( null                ,  0 ,  0 ), /* E6 */
 			new OpCode( null                ,  0 ,  0 ), /* E7 */
 			new OpCode( null                ,  0 ,  0 ), /* E8 */
-			new OpCode( "JP IX"             ,  8 ,  0 , OpCodeFlags.Jumps), /* E9 */
+			new OpCode( "JP (IX)"             ,  8 ,  0 , OpCodeFlags.Jumps), /* E9 */
 			new OpCode( null                ,  0 ,  0 ), /* EA */
 			new OpCode( null                ,  0 ,  0 ), /* EB */
 			new OpCode( null                ,  0 ,  0 ), /* EC */
@@ -1335,7 +1335,7 @@ namespace yazd
 			new OpCode( null                ,  0 ,  0 ), /* E6 */
 			new OpCode( null                ,  0 ,  0 ), /* E7 */
 			new OpCode( null                ,  0 ,  0 ), /* E8 */
-			new OpCode( "JP IY"             ,  8 ,  0 , OpCodeFlags.Jumps ), /* E9 */
+			new OpCode( "JP (IY)"             ,  8 ,  0 , OpCodeFlags.Jumps ), /* E9 */
 			new OpCode( null                ,  0 ,  0 ), /* EA */
 			new OpCode( null                ,  0 ,  0 ), /* EB */
 			new OpCode( null                ,  0 ,  0 ), /* EC */
