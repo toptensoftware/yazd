@@ -294,7 +294,7 @@ namespace yazd
 					while (!instructions.ContainsKey(addr) && addr >= _start && addr < _start + _len)
 					{
 						// Disassemble this instruction
-						var i = Disassembler.Disassemble(code, (ushort)(addr - _baseAddr - _header), (ushort)addr);
+						var i = Disassembler.Disassemble(code, (ushort)(addr - _baseAddr + _header), (ushort)addr);
 
 						// Possible address reference?
 						if (_markWordRefs && i.word_val.HasValue && (i.opCode.flags & (OpCodeFlags.Jumps | OpCodeFlags.RefAddr)) == 0)
@@ -326,7 +326,7 @@ namespace yazd
 				for (int addr = _start; addr < _start + _len; )
 				{
 					// Disassemble this instruction
-					var i = Disassembler.Disassemble(code, (ushort)(addr - _baseAddr - _header), (ushort)addr);
+					var i = Disassembler.Disassemble(code, (ushort)(addr - _baseAddr + _header), (ushort)addr);
 
 					// Add it
 					instructions.Add(addr, i);
@@ -344,7 +344,7 @@ namespace yazd
 			{
 				for (int j = from; j < to; j++)
 				{
-					var data = code[j - _baseAddr - _header];
+					var data = code[j - _baseAddr + _header];
 
 					// Get the byte
 					var instruction = new Instruction();
@@ -513,7 +513,7 @@ namespace yazd
 					w.Write("{0:X4}:", i.addr);
 					for (int j = 0; j < i.bytes; j++)
 					{
-						var data = code[i.addr + j - _baseAddr - _header];
+						var data = code[i.addr + j - _baseAddr + _header];
 						w.Write(" {0:X2}", data);
 					}
 

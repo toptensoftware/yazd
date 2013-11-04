@@ -58,7 +58,11 @@ namespace yazd
 
 		public static Instruction Disassemble(byte[] buffer, ushort offsetInBuffer, ushort addr)
 		{
-			Func<byte> readByte = () => { addr++; return buffer[offsetInBuffer++]; };
+			Func<byte> readByte = () => 
+            { 
+                addr++; 
+                return (byte)(offsetInBuffer<buffer.Length ? buffer[offsetInBuffer++] : 0); 
+            };
 
 			var i = new Instruction();
 			i.addr = addr;
