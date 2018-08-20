@@ -18,11 +18,13 @@ namespace yazd
 		RefAddr = 0x0010,	// References a literal address
 		PortRef = 0x0020,	// IN or OUT instruction
 		Call = 0x0040,
+        ImplicitA = 0x0080, // Implicit accumulator register eg: ADD B
 	}
 
 	public class OpCode
 	{
 		public string mnemonic;
+        public string altMnemonic;
 		public int t_states;
 		public int t_states2;
 		public OpCodeFlags flags;
@@ -42,8 +44,21 @@ namespace yazd
 				if (mnemonic.StartsWith("IN ") || mnemonic.StartsWith("OUT "))
 					this.flags |= OpCodeFlags.PortRef;
 
-				if (mnemonic.StartsWith("CALL ") || mnemonic.StartsWith("OUT "))
+				if (mnemonic.StartsWith("CALL "))
 					this.flags |= OpCodeFlags.Call;
+
+                if ((this.flags & OpCodeFlags.ImplicitA)!=0)
+                {
+                    int spacePos = this.mnemonic.IndexOf(' ');
+                    if (spacePos >= 0)
+                    {
+                        altMnemonic = mnemonic.Substring(0, spacePos + 1) + "A," + mnemonic.Substring(spacePos + 1);
+                    }
+                    else
+                    {
+                        altMnemonic = mnemonic + " A";
+                    }
+                }
 			}
 		}
 	}
@@ -197,14 +212,14 @@ namespace yazd
 			new OpCode( "ADC A,L"           ,  4 ,  0 ), /* 8D */
 			new OpCode( "ADC A,(HL)"        ,  7 ,  0 ), /* 8E */
 			new OpCode( "ADC A,A"           ,  4 ,  0 ), /* 8F */
-			new OpCode( "SUB B"             ,  4 ,  0 ), /* 90 */
-			new OpCode( "SUB C"             ,  4 ,  0 ), /* 91 */
-			new OpCode( "SUB D"             ,  4 ,  0 ), /* 92 */
-			new OpCode( "SUB E"             ,  4 ,  0 ), /* 93 */
-			new OpCode( "SUB H"             ,  4 ,  0 ), /* 94 */
-			new OpCode( "SUB L"             ,  4 ,  0 ), /* 95 */
-			new OpCode( "SUB (HL)"          ,  7 ,  0 ), /* 96 */
-			new OpCode( "SUB A"             ,  4 ,  0 ), /* 97 */
+			new OpCode( "SUB B"             ,  4 ,  0, OpCodeFlags.ImplicitA ), /* 90 */
+			new OpCode( "SUB C"             ,  4 ,  0, OpCodeFlags.ImplicitA ), /* 91 */
+			new OpCode( "SUB D"             ,  4 ,  0, OpCodeFlags.ImplicitA ), /* 92 */
+			new OpCode( "SUB E"             ,  4 ,  0, OpCodeFlags.ImplicitA ), /* 93 */
+			new OpCode( "SUB H"             ,  4 ,  0, OpCodeFlags.ImplicitA ), /* 94 */
+			new OpCode( "SUB L"             ,  4 ,  0, OpCodeFlags.ImplicitA ), /* 95 */
+			new OpCode( "SUB (HL)"          ,  7 ,  0, OpCodeFlags.ImplicitA ), /* 96 */
+			new OpCode( "SUB A"             ,  4 ,  0, OpCodeFlags.ImplicitA ), /* 97 */
 			new OpCode( "SBC A,B"           ,  4 ,  0 ), /* 98 */
 			new OpCode( "SBC A,C"           ,  4 ,  0 ), /* 99 */
 			new OpCode( "SBC A,D"           ,  4 ,  0 ), /* 9A */
@@ -213,38 +228,38 @@ namespace yazd
 			new OpCode( "SBC A,L"           ,  4 ,  0 ), /* 9D */
 			new OpCode( "SBC A,(HL)"        ,  7 ,  0 ), /* 9E */
 			new OpCode( "SBC A,A"           ,  4 ,  0 ), /* 9F */
-			new OpCode( "AND B"             ,  4 ,  0 ), /* A0 */
-			new OpCode( "AND C"             ,  4 ,  0 ), /* A1 */
-			new OpCode( "AND D"             ,  4 ,  0 ), /* A2 */
-			new OpCode( "AND E"             ,  4 ,  0 ), /* A3 */
-			new OpCode( "AND H"             ,  4 ,  0 ), /* A4 */
-			new OpCode( "AND L"             ,  4 ,  0 ), /* A5 */
-			new OpCode( "AND (HL)"          ,  7 ,  0 ), /* A6 */
-			new OpCode( "AND A"             ,  4 ,  0 ), /* A7 */
-			new OpCode( "XOR B"             ,  4 ,  0 ), /* A8 */
-			new OpCode( "XOR C"             ,  4 ,  0 ), /* A9 */
-			new OpCode( "XOR D"             ,  4 ,  0 ), /* AA */
-			new OpCode( "XOR E"             ,  4 ,  0 ), /* AB */
-			new OpCode( "XOR H"             ,  4 ,  0 ), /* AC */
-			new OpCode( "XOR L"             ,  4 ,  0 ), /* AD */
-			new OpCode( "XOR (HL)"          ,  7 ,  0 ), /* AE */
-			new OpCode( "XOR A"             ,  4 ,  0 ), /* AF */
-			new OpCode( "OR B"              ,  4 ,  0 ), /* B0 */
-			new OpCode( "OR C"              ,  4 ,  0 ), /* B1 */
-			new OpCode( "OR D"              ,  4 ,  0 ), /* B2 */
-			new OpCode( "OR E"              ,  4 ,  0 ), /* B3 */
-			new OpCode( "OR H"              ,  4 ,  0 ), /* B4 */
-			new OpCode( "OR L"              ,  4 ,  0 ), /* B5 */
-			new OpCode( "OR (HL)"           ,  7 ,  0 ), /* B6 */
-			new OpCode( "OR A"              ,  4 ,  0 ), /* B7 */
-			new OpCode( "CP B"              ,  4 ,  0 ), /* B8 */
-			new OpCode( "CP C"              ,  4 ,  0 ), /* B9 */
-			new OpCode( "CP D"              ,  4 ,  0 ), /* BA */
-			new OpCode( "CP E"              ,  4 ,  0 ), /* BB */
-			new OpCode( "CP H"              ,  4 ,  0 ), /* BC */
-			new OpCode( "CP L"              ,  4 ,  0 ), /* BD */
-			new OpCode( "CP (HL)"           ,  7 ,  0 ), /* BE */
-			new OpCode( "CP A"              ,  4 ,  0 ), /* BF */
+			new OpCode( "AND B"             ,  4 ,  0, OpCodeFlags.ImplicitA  ), /* A0 */
+			new OpCode( "AND C"             ,  4 ,  0, OpCodeFlags.ImplicitA  ), /* A1 */
+			new OpCode( "AND D"             ,  4 ,  0, OpCodeFlags.ImplicitA  ), /* A2 */
+			new OpCode( "AND E"             ,  4 ,  0, OpCodeFlags.ImplicitA  ), /* A3 */
+			new OpCode( "AND H"             ,  4 ,  0, OpCodeFlags.ImplicitA  ), /* A4 */
+			new OpCode( "AND L"             ,  4 ,  0, OpCodeFlags.ImplicitA  ), /* A5 */
+			new OpCode( "AND (HL)"          ,  7 ,  0, OpCodeFlags.ImplicitA  ), /* A6 */
+			new OpCode( "AND A"             ,  4 ,  0, OpCodeFlags.ImplicitA  ), /* A7 */
+			new OpCode( "XOR B"             ,  4 ,  0, OpCodeFlags.ImplicitA  ), /* A8 */
+			new OpCode( "XOR C"             ,  4 ,  0, OpCodeFlags.ImplicitA  ), /* A9 */
+			new OpCode( "XOR D"             ,  4 ,  0, OpCodeFlags.ImplicitA  ), /* AA */
+			new OpCode( "XOR E"             ,  4 ,  0, OpCodeFlags.ImplicitA  ), /* AB */
+			new OpCode( "XOR H"             ,  4 ,  0, OpCodeFlags.ImplicitA  ), /* AC */
+			new OpCode( "XOR L"             ,  4 ,  0, OpCodeFlags.ImplicitA  ), /* AD */
+			new OpCode( "XOR (HL)"          ,  7 ,  0, OpCodeFlags.ImplicitA  ), /* AE */
+			new OpCode( "XOR A"             ,  4 ,  0, OpCodeFlags.ImplicitA  ), /* AF */
+			new OpCode( "OR B"              ,  4 ,  0, OpCodeFlags.ImplicitA  ), /* B0 */
+			new OpCode( "OR C"              ,  4 ,  0, OpCodeFlags.ImplicitA  ), /* B1 */
+			new OpCode( "OR D"              ,  4 ,  0, OpCodeFlags.ImplicitA  ), /* B2 */
+			new OpCode( "OR E"              ,  4 ,  0, OpCodeFlags.ImplicitA  ), /* B3 */
+			new OpCode( "OR H"              ,  4 ,  0, OpCodeFlags.ImplicitA  ), /* B4 */
+			new OpCode( "OR L"              ,  4 ,  0, OpCodeFlags.ImplicitA  ), /* B5 */
+			new OpCode( "OR (HL)"           ,  7 ,  0, OpCodeFlags.ImplicitA  ), /* B6 */
+			new OpCode( "OR A"              ,  4 ,  0, OpCodeFlags.ImplicitA  ), /* B7 */
+			new OpCode( "CP B"              ,  4 ,  0, OpCodeFlags.ImplicitA  ), /* B8 */
+			new OpCode( "CP C"              ,  4 ,  0, OpCodeFlags.ImplicitA  ), /* B9 */
+			new OpCode( "CP D"              ,  4 ,  0, OpCodeFlags.ImplicitA  ), /* BA */
+			new OpCode( "CP E"              ,  4 ,  0, OpCodeFlags.ImplicitA  ), /* BB */
+			new OpCode( "CP H"              ,  4 ,  0, OpCodeFlags.ImplicitA  ), /* BC */
+			new OpCode( "CP L"              ,  4 ,  0, OpCodeFlags.ImplicitA  ), /* BD */
+			new OpCode( "CP (HL)"           ,  7 ,  0, OpCodeFlags.ImplicitA  ), /* BE */
+			new OpCode( "CP A"              ,  4 ,  0, OpCodeFlags.ImplicitA  ), /* BF */
 			new OpCode( "RET NZ"            ,  5 , 11 , OpCodeFlags.Returns | OpCodeFlags.Continues), /* C0 */
 			new OpCode( "POP BC"            , 10 ,  0 ), /* C1 */
 			new OpCode( "JP NZ,@"           , 10 ,  0 , OpCodeFlags.Jumps | OpCodeFlags.Continues), /* C2 */
