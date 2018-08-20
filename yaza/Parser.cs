@@ -123,7 +123,7 @@ namespace yaza
                 // Check for recursive inclusion of the same file
                 if (IsParsing(includeFile))
                 {
-                    throw new CodeException(_tokenizer.TokenPosition, $"error: recursive include file {_tokenizer.TokenRaw}");
+                    throw new CodeException($"error: recursive include file {_tokenizer.TokenRaw}", _tokenizer.TokenPosition);
                 }
 
                 string includeText;
@@ -133,7 +133,7 @@ namespace yaza
                 }
                 catch (Exception x)
                 {
-                    throw new CodeException(_tokenizer.TokenPosition, $"error: include file '{_tokenizer.TokenRaw}' - {x.Message}");
+                    throw new CodeException($"error: include file '{_tokenizer.TokenRaw}' - {x.Message}", _tokenizer.TokenPosition);
                 }
 
                 // Parse it
@@ -160,7 +160,7 @@ namespace yaza
                 }
                 catch (Exception x)
                 {
-                    throw new CodeException(_tokenizer.TokenPosition, $"error loading incbin file '{includeFile}' - {x.Message}");
+                    throw new CodeException($"error loading incbin file '{includeFile}' - {x.Message}", _tokenizer.TokenPosition);
                 }
 
                 // Skip the filename
@@ -218,7 +218,7 @@ namespace yaza
                     return ParseInstruction(pos, name);
                 }
 
-                throw new CodeException(pos, $"syntax error: '{name}'");
+                throw new CodeException($"syntax error: '{name}'", pos);
             }
 
             // What?
@@ -673,8 +673,13 @@ namespace yaza
         // Ternery
         ExprNode ParseExpression()
         {
+            // Capture position
+            var pos = _tokenizer.TokenPosition;
+
+            // Parse the condition part
             var condition = ParseLogicalOr();
 
+            // Is it a conditional
             if (_tokenizer.TrySkipToken(Token.Question))
             {
                 var trueNode = ParseExpression();
@@ -685,12 +690,15 @@ namespace yaza
 
                 return new ExprNodeTernery()
                 {
+                    SourcePosition = pos,
                     Condition = condition,
                     TrueValue = trueNode,
                     FalseValue = falseNode,
                 };
             }
 
+            if (condition.SourcePosition == null)
+                condition.SourcePosition = pos;
             return condition;
         }
 

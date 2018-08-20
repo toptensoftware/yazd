@@ -7,7 +7,7 @@ using yazd;
 
 namespace yaza
 {
-    public class Instruction
+    public abstract class Instruction
     {
         // The simplified version of the mnemonic (ie: with immediate arguments replaced by '?')
         public string mnemonic;
@@ -27,6 +27,8 @@ namespace yaza
                     return mnemonic.Substring(0, space);
             }
         }
+
+        public abstract void Generate(GenerateContext ctx, SourcePosition sourcePosition, int[] immArgs);
     }
 
     // Represents and instruction group (ie: a set of instructions with variations on an immediate value)
@@ -78,6 +80,19 @@ namespace yaza
             }
         }
 
+        public override void Generate(GenerateContext ctx, SourcePosition sourcePosition, int[] immArgs)
+        {
+            // Find the definition
+            InstructionDefinition def;
+            if (!_immVariations.TryGetValue(immArgs[0], out def))
+            {
+                throw new CodeException($"the immediate value {immArgs[0]} isn't a valid value for this instruction");
+            }
+
+            // Pass to the undelying definition (after removing the imm variation arg)
+            def.Generate(ctx, sourcePosition, immArgs.Skip(1).ToArray());
+        }
+
         // For instructions that contain hard coded immediate values eg: RST 0x68, SET 7,(HL) etc...
         // this is a dictionary of of the immediate values to a real final instruction
         Dictionary<int, InstructionDefinition> _immVariations = new Dictionary<int, InstructionDefinition>();
@@ -120,6 +135,50 @@ namespace yaza
                         break;
                 }
             }
+        }
+
+        // Prepare this instruction instance
+        public override void Generate(GenerateContext ctx, SourcePosition sourcePosition, int[] immArgs)
+        {
+            var oldIp = ctx.ip;
+
+            // Emit the bytes before the value
+            ctx.EmitBytes(bytes, true);
+
+            // Emit the immediate bytes
+            int arg = 0;
+            foreach (var ch in mnemonic)
+            {
+                switch (ch)
+                {
+                    case '@':
+                        // 16-bit immediate
+                        ctx.Emit16(sourcePosition, immArgs[arg++]);
+                        break;
+
+                    case '$':
+                        ctx.EmitSignedByte(sourcePosition, immArgs[arg++]);
+                        break;
+
+                    case '%':
+                        ctx.EmitRelOffset(sourcePosition, immArgs[arg++]);
+                        break;
+
+                    case '#':
+                        // 8 bit immediate
+                        ctx.Emit8(sourcePosition, immArgs[arg++]);
+                        break;
+                }
+            }
+
+
+            // Emit the suffix bytes
+            if (suffixBytes != null)
+                ctx.EmitBytes(suffixBytes, true);
+
+            // Sanity checks
+            System.Diagnostics.Debug.Assert(arg == (immArgs == null ? 0 : immArgs.Length));
+            System.Diagnostics.Debug.Assert(ctx.ip - oldIp == this.Length);
         }
 
         public void Dump()

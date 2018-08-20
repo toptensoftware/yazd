@@ -1,0 +1,22 @@
+# File test.asm
+0000				org 0x400 
+0400			 
+0400				include "inc.asm" 
+0400			proc: 
+0400 f5				push	af 
+0401 d1				pop		de 
+0402 c9				ret 
+# End of file inc.asm
+0403			 
+0403			label: 
+0403 17 18			db 23,24 
+0405 ..				db "Hello world" 
+0410			 
+0410 10 fe			djnz	$ 
+0412			 
+0412 3e 00			ld a, 0 
+0414 28 ed			jr z,label 
+0416			 
+0416				incbin "test.asm" 
+# End of file test.asm
+049a

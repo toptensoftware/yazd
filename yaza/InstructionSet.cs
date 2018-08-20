@@ -60,7 +60,7 @@ namespace yaza
                 var ch = mnemonic[i];
 
                 // Typed placeholder?
-                if (ch == '%' || ch == '?' || ch == '#' || ch == '$')
+                if (ch == '%' || ch == '@' || ch == '#' || ch == '$')
                 {
                     sb.Append('?');
                     continue;
@@ -211,10 +211,12 @@ namespace yaza
 
         public static void DumpAll()
         {
-            foreach (var m in _opMap.Values.OrderBy(x => x.mnemonic))
+            foreach (var kv in _opMap.OrderBy(x => x.Value.mnemonic))
             {
+                //Console.WriteLine(kv.Key);
+
                 // Is it a group?
-                var group = m as InstructionGroup;
+                var group = kv.Value as InstructionGroup;
                 if (group != null)
                 {
                     Console.WriteLine($"<group>          {group.mnemonic}");
@@ -225,7 +227,7 @@ namespace yaza
                 }
 
                 // Is it a definition?
-                var def = m as InstructionDefinition;
+                var def = kv.Value as InstructionDefinition;
                 if (def != null)
                 {
                     def.Dump();

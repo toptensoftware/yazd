@@ -117,9 +117,9 @@ namespace yaza
             if (_token != token)
             {
                 if (suffix != null)
-                    throw new CodeException(TokenPosition, $"syntax error: expected {describeToken(token)} {suffix}, found '{TokenRaw}'");
+                    throw new CodeException($"syntax error: expected {describeToken(token)} {suffix}, found '{TokenRaw}'", TokenPosition);
                 else
-                    throw new CodeException(TokenPosition, $"syntax error: expected {describeToken(token)}, found '{TokenRaw}'");
+                    throw new CodeException($"syntax error: expected {describeToken(token)}, found '{TokenRaw}'", TokenPosition);
             }
         }
 
@@ -131,7 +131,7 @@ namespace yaza
 
         public CodeException Unexpected()
         {
-            return new CodeException(TokenPosition, $"syntax error: '{TokenRaw}'");
+            return new CodeException($"syntax error: '{TokenRaw}'", TokenPosition);
         }
 
         static string describeToken(Token token)

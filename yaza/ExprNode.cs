@@ -20,10 +20,14 @@ namespace yaza
 
     public abstract class ExprNode
     {
+        // Source position of this expression (only really usd on root expression elements)
+        public SourcePosition SourcePosition;
+
         public abstract void Dump(TextWriter w, int indent);
         public abstract int Evaluate(AstScope scope);
         public abstract AddressingMode GetAddressingMode(AstScope scope);
         public virtual string GetRegister() { return null; }
+        public virtual int GetImmediateValue(AstScope scope) { return Evaluate(scope); }
     }
 
     public class ExprNodeLiteral : ExprNode
@@ -56,12 +60,11 @@ namespace yaza
         public ExprNodeDeferredValue(string name, SourcePosition pos)
         {
             _name = name;
-            _position = pos;
+            SourcePosition = pos;
         }
 
         int? _value;
         string _name;
-        SourcePosition _position;
 
         public void Resolve(int value)
         {
@@ -78,7 +81,7 @@ namespace yaza
             if (_value.HasValue)
                 return _value.Value;
 
-            throw new CodeException(_position, $"The value of symbol '{_name}' can't been resolved");
+            throw new CodeException($"The value of symbol '{_name}' can't been resolved", SourcePosition);
         }
 
         public override AddressingMode GetAddressingMode(AstScope scope)
@@ -358,6 +361,23 @@ namespace yaza
             }
         }
 
+        public override int GetImmediateValue(AstScope scope)
+        {
+            foreach (var n in _nodes)
+            {
+                switch (n.GetAddressingMode(scope))
+                {
+                    case AddressingMode.Immediate:
+                    case AddressingMode.DerefImmediate:
+                    case AddressingMode.DerefRegisterPlusImmediate:
+                    case AddressingMode.RegisterPlusImmediate:
+                        return n.GetImmediateValue(scope);
+                }
+            }
+
+            throw new NotImplementedException("Internal error");
+        }
+
         public override string GetRegister()
         {
             foreach (var n in _nodes)
@@ -373,14 +393,13 @@ namespace yaza
 
     public class ExprNodeIdentifier : ExprNode
     {
-        public ExprNodeIdentifier(SourcePosition pos, string name)
+        public ExprNodeIdentifier(SourcePosition position, string name)
         {
             _name = name;
-            _sourcePosition = pos;
+            SourcePosition = position;
         }
 
         string _name;
-        SourcePosition _sourcePosition;
 
         public override void Dump(TextWriter w, int indent)
         {
@@ -393,7 +412,7 @@ namespace yaza
             if (symbolDefinition != null)
                 return symbolDefinition.Evaluate(scope);
 
-            throw new CodeException(_sourcePosition, $"unknown symbol: '{_name}'");
+            throw new CodeException($"unknown symbol: '{_name}'", SourcePosition);
         }
 
         public override AddressingMode GetAddressingMode(AstScope scope)
@@ -402,7 +421,7 @@ namespace yaza
             if (symbolDefinition != null)
                 return symbolDefinition.GetAddressingMode(scope);
 
-            throw new CodeException(_sourcePosition, $"unknown symbol: '{_name}'");
+            throw new CodeException($"unknown symbol: '{_name}'", SourcePosition);
         }
     }
 
@@ -411,11 +430,10 @@ namespace yaza
         public ExprNodeRegisterOrFlag(SourcePosition position, string name)
         {
             _name = name;
-            _position = position;
+            SourcePosition = position;
         }
 
         string _name;
-        SourcePosition _position;
 
         public override void Dump(TextWriter w, int indent)
         {
@@ -424,7 +442,7 @@ namespace yaza
 
         public override int Evaluate(AstScope scope)
         {
-            throw new CodeException(_position, "'{_name}' can't be evaluated at compile time");
+            throw new CodeException("'{_name}' can't be evaluated at compile time", SourcePosition);
         }
 
         public override AddressingMode GetAddressingMode(AstScope scope)
@@ -442,11 +460,10 @@ namespace yaza
     {
         public ExprNodeDeref(SourcePosition position)
         {
-            _position = position;
+            SourcePosition = position;
         }
 
         public ExprNode Pointer;
-        SourcePosition _position;
 
         public override void Dump(TextWriter w, int indent)
         {
@@ -456,7 +473,7 @@ namespace yaza
 
         public override int Evaluate(AstScope scope)
         {
-            throw new CodeException(_position, "pointer dereference operator can't be evaluated at compile time");
+            throw new CodeException("pointer dereference operator can't be evaluated at compile time", SourcePosition);
         }
 
         public override AddressingMode GetAddressingMode(AstScope scope)
@@ -479,6 +496,59 @@ namespace yaza
         public override string GetRegister()
         {
             return Pointer.GetRegister();
+        }
+
+        public override int GetImmediateValue(AstScope scope)
+        {
+            return Pointer.GetImmediateValue(scope);
+        }
+    }
+
+    public class ExprNodeIP : ExprNode
+    {
+        public ExprNodeIP()
+        {
+        }
+
+        GenerateContext _generateContext;
+        LayoutContext _layoutContext;
+
+        public void SetContext(GenerateContext ctx)
+        {
+            _generateContext = ctx;
+            _layoutContext = null;
+        }
+
+        public void SetContext(LayoutContext ctx)
+        {
+            _layoutContext = ctx;
+            _generateContext = null;
+        }
+
+        public override void Dump(TextWriter w, int indent)
+        {
+            w.WriteLine($"{Utils.Indent(indent)}- ip '$' pointer");
+        }
+
+        public override int Evaluate(AstScope scope)
+        {
+            if (_generateContext != null)
+                return _generateContext.ip;
+
+            if (_layoutContext != null)
+                return _layoutContext.ip;
+
+            throw new CodeException("Symbol $ can't be resolved at this time");
+        }
+
+        public override AddressingMode GetAddressingMode(AstScope scope)
+        {
+            return AddressingMode.Immediate;
+        }
+
+        public override int GetImmediateValue(AstScope scope)
+        {
+            return _generateContext.ip;
         }
     }
 }

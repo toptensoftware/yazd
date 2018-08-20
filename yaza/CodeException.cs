@@ -8,16 +8,15 @@ namespace yaza
 {
     public class CodeException : Exception
     {
-        public CodeException(SourcePosition position, string message)
+        public CodeException(string message, SourcePosition position = null)
         {
-            _position = position;
+            Position = position;
             _message = message;
         }
 
-        SourcePosition _position;
         string _message;
 
-        public SourcePosition Position => _position;
+        public SourcePosition Position { get; set; }
         public override string Message => _message;
     }
 }

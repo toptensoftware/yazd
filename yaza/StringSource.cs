@@ -51,6 +51,16 @@ namespace yaza
             return new SourcePosition(this, position);
         }
 
+        public SourcePosition CreateLinePosition(int line)
+        {
+            return new SourcePosition(this, LineNumbers.ToFileOffset(line, 0));
+        }
+
+        public SourcePosition CreateEndPosition()
+        {
+            return CreatePosition(_stopPos);
+        }
+
         public SourcePosition CapturePosition()
         {
             return new SourcePosition(this, _pos);
@@ -341,6 +351,17 @@ namespace yaza
                     _lineNumbers = new LineNumbers(_str);
                 return _lineNumbers;
             }
+        }
+
+        public string ExtractLine(int line)
+        {
+            int linePos = LineNumbers.ToFileOffset(line, 0);
+            int nextLinePos = LineNumbers.ToFileOffset(line + 1, 0);
+            if (nextLinePos > 1 && _str[nextLinePos-1] == '\n')
+                nextLinePos--;
+            if (nextLinePos > 1 && _str[nextLinePos-1] == '\r')
+                nextLinePos--;
+            return _str.Substring(linePos, nextLinePos - linePos);
         }
 
         StringBuilder _sb = new StringBuilder();

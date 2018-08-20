@@ -1,9 +1,14 @@
 	org 0x400
 
-vram: equ 0x1234 ; zx
-entry:
-	call exit1
-	ld a,(ix+0) ; Stuff pp
+	include "inc.asm"
 
+label:
+	db 23,24
+	db "Hello world"
 
-	exit:
+	djnz	$
+
+	ld a, 0
+	jr z,label
+
+	incbin "test.asm"

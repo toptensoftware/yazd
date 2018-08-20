@@ -227,7 +227,8 @@ namespace yaza
 
         public override void Generate(AstScope currentScope, GenerateContext ctx)
         {
-            ctx.SetOrg(_address);
+            ctx.ListTo(SourcePosition);
+            ctx.SetOrg(SourcePosition, _address);
         }
     }
 
@@ -270,9 +271,10 @@ namespace yaza
 
         public override void Generate(AstScope currentScope, GenerateContext ctx)
         {
+            ctx.ListTo(SourcePosition);
             foreach (var e in _values)
             {
-                ctx.EmitByte(e.Evaluate(currentScope));
+                ctx.Emit8(e.SourcePosition, e.Evaluate(currentScope));
             }
         }
     }
@@ -297,9 +299,10 @@ namespace yaza
 
         public override void Generate(AstScope currentScope, GenerateContext ctx)
         {
+            ctx.ListTo(SourcePosition);
             foreach (var e in _values)
             {
-                ctx.EmitWord(e.Evaluate(currentScope));
+                ctx.Emit16(e.SourcePosition, e.Evaluate(currentScope));
             }
         }
     }
@@ -388,7 +391,10 @@ namespace yaza
 
         public override void Generate(AstScope currentScope, GenerateContext ctx)
         {
+            ctx.ListToInclusive(SourcePosition);
+            ctx.EnterSourceFile(_content.SourcePosition);
             _content.Generate(currentScope, ctx);
+            ctx.LeaveSourceFile();
         }
 
     }
@@ -427,7 +433,14 @@ namespace yaza
 
         public override void Generate(AstScope currentScope, GenerateContext ctx)
         {
-            ctx.EmitBytes(_data);
+            if (ctx.ListFile != null)
+            {
+                ctx.ListTo(SourcePosition);
+                ctx.WriteListingText($"{ctx.ip:X4}: [{_data.Length} bytes]");
+                ctx.ListToInclusive(SourcePosition);
+            }
+
+            ctx.EmitBytes(_data, false);
         }
     }
 
@@ -521,7 +534,45 @@ namespace yaza
 
         public override void Generate(AstScope currentScope, GenerateContext ctx)
         {
-            throw new NotImplementedException();
+            ctx.ListTo(SourcePosition);
+            ctx.EnterInstruction(this);
+            try
+            {
+                List<int> immediateValues = null;
+                for (int i = 0; i < _operands.Count; i++)
+                {
+                    var o = _operands[i];
+                    switch (o.GetAddressingMode(currentScope))
+                    {
+                        case AddressingMode.Immediate:
+                        case AddressingMode.DerefImmediate:
+                        case AddressingMode.DerefRegisterPlusImmediate:
+                        case AddressingMode.RegisterPlusImmediate:
+                            // Create the list if not already
+                            if (immediateValues == null)
+                                immediateValues = new List<int>();
+
+                            // Get the immediate value
+                            try
+                            {
+                                immediateValues.Add(o.GetImmediateValue(currentScope));
+                            }
+                            catch (CodeException x)
+                            {
+                                Log.Error(x);
+                                immediateValues.Add(0);
+                            }
+                            break;
+                    }
+                }
+
+                // Generate the instruction
+                _instruction.Generate(ctx, SourcePosition, immediateValues?.ToArray());
+            }
+            finally
+            {
+                ctx.LeaveInstruction();
+            }
         }
     }
 }

@@ -33,6 +33,12 @@ namespace yaza
             }
         }
 
+
+        public static void Error(string message)
+        {
+            _output.WriteLine($"{message}");
+        }
+
         public static void Error(CodeException exception)
         {
             Error(exception.Position, exception.Message);

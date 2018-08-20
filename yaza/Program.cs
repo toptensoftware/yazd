@@ -74,22 +74,41 @@ namespace yaza
                     case "ast":
                         if (Value != null)
                         {
-                            _ast = new StreamWriter(Value);
+                            _astFile = Value;
                         }
                         else
                         {
-                            _ast = Console.Out;
+                            _astFile = ":stdout";
                         }
                         break;
 
                     case "symbols":
                         if (Value != null)
                         {
-                            _symbols = new StreamWriter(Value);
+                            _symbolsFile = Value;
                         }
                         else
                         {
-                            _symbols = Console.Out;
+                            _symbolsFile = ":stdout";
+                        }
+                        break;
+
+                    case "list":
+                        if (Value != null)
+                        {
+                            _listFile = Value;
+                        }
+                        else
+                        {
+                            _listFile = ":stdout";
+                        }
+                        break;
+
+
+                    case "output":
+                        if (Value != null)
+                        {
+                            _outputFile = Value;
                         }
                         break;
 
@@ -109,8 +128,10 @@ namespace yaza
         }
 
         string _inputFile;
-        TextWriter _ast;
-        TextWriter _symbols;
+        string _outputFile;
+        string _astFile;
+        string _symbolsFile;
+        string _listFile;
 
         public bool ProcessArgs(IEnumerable<string> args)
         {
@@ -161,6 +182,20 @@ namespace yaza
             Console.WriteLine();
         }
 
+        public TextWriter OpenTextWriter(string filename)
+        {
+            if (filename == ":stdout")
+                return Console.Out;
+            else
+                return new StreamWriter(filename);
+        }
+
+        public void CloseTextWriter(TextWriter w)
+        {
+            if (w != Console.Out && w != null)
+                w.Dispose();
+        }
+
         public int Run(string[] args)
         {
             // Process command line
@@ -182,18 +217,21 @@ namespace yaza
             // Step 2 - Create the root scope and define all symbols
             var root = new AstScope("global");
             root.AddElement(file);
+
+            var exprNodeIP = new ExprNodeIP();
+            root.Define("$", exprNodeIP);
             root.DefineSymbols(null);
 
-            if (_ast != null)
+            if (_astFile != null)
             {
-                root.Dump(_ast, 0);
-                if (_ast != Console.Out)
-                    _ast.Dispose();
-                _ast = null;
+                var w = OpenTextWriter(_astFile);
+                root.Dump(w, 0);
+                CloseTextWriter(w);
             }
 
             // Step 3 - Map instructions
             var layoutContext = new LayoutContext();
+            exprNodeIP.SetContext(layoutContext);
             root.Layout(null, layoutContext);
 
             if (Log.ErrorCount == 0)
@@ -201,19 +239,32 @@ namespace yaza
                 // Step 4 - Generate Code
                 var generateContext = new GenerateContext(layoutContext);
 
+                exprNodeIP.SetContext(generateContext);
+
+                if (_listFile != null)
+                    generateContext.ListFile = OpenTextWriter(_listFile);
+
+                generateContext.EnterSourceFile(file.SourcePosition);
                 root.Generate(null, generateContext);
+                generateContext.LeaveSourceFile();
+
+                CloseTextWriter(generateContext.ListFile);
+
+                if (Log.ErrorCount == 0)
+                {
+                    var code = generateContext.GetGeneratedBytes(layoutContext.minAddress.Value, layoutContext.maxAddress.Value);
+                    var outputFile = _outputFile == null ? System.IO.Path.ChangeExtension(_inputFile, ".bin") : _outputFile;
+                    System.IO.File.WriteAllBytes(outputFile, code);
+                }
             }
 
 
-            // Close symbols file
-            if (_symbols != null)
+            // Write symbols file
+            if (_symbolsFile != null && Log.ErrorCount == 0)
             {
-                if (Log.ErrorCount == 0)
-                    root.DumpSymbols(_symbols);
-
-                if (_symbols != Console.Out)
-                    _symbols.Dispose();
-                _symbols = null;
+                var w = OpenTextWriter(_symbolsFile);
+                root.DumpSymbols(w);
+                CloseTextWriter(w);
             }
 
             Log.DumpSummary();
