@@ -13,6 +13,31 @@ namespace yaza
         public OpCode opCode;
         public byte[] bytes;
         public byte[] suffixBytes;
+        public int Length;
+
+        public void Prepare()
+        {
+            Length = bytes.Length;
+            if (suffixBytes != null)
+                Length += suffixBytes.Length;
+
+            foreach (var ch in mnemonic)
+            {
+                switch (ch)
+                {
+                    case '@':
+                        Length += 2;
+                        break;
+
+                    case '$':
+                    case '%':
+                    case '#':
+                        Length++;
+                        break;
+                }
+            }
+
+        }
 
         // Given a mnemonic pattern, find the associated instruction
         public static Instruction Find(string mnemonic)
@@ -97,7 +122,7 @@ namespace yaza
             Console.WriteLine(mnemonic);
         }
 
-        static Dictionary<string, Instruction> _opMap = new Dictionary<string, Instruction>();
+        static Dictionary<string, Instruction> _opMap = new Dictionary<string, Instruction>(StringComparer.InvariantCultureIgnoreCase);
 
         static string KeyOfMnemonic(string mnemonic)
         {
@@ -110,7 +135,16 @@ namespace yaza
 
         static void AddInstruction(Instruction instruction)
         {
+            instruction.Prepare();
+
             string key = KeyOfMnemonic(instruction.mnemonic);
+
+            var bitimm = ReplaceBitImmediates(key);
+            if (bitimm != null)
+            {
+                Console.WriteLine($"{key} => {bitimm}");
+            }
+
 
             Instruction existing;
             if (_opMap.TryGetValue(key, out existing))
@@ -130,6 +164,30 @@ namespace yaza
             {
                 _opMap.Add(key, instruction);
             }
+        }
+
+        static string ReplaceBitImmediates(string mnemonic)
+        {
+            var spacePos = mnemonic.IndexOf(' ');
+            if (spacePos < 0)
+                return null;
+
+            for (int i = spacePos+1; i < mnemonic.Length; i++)
+            {
+                var ch = mnemonic[i];
+
+                // Digit?
+                if (ch >= '0' && ch <= '9')
+                {
+                    int pos = i;
+                    while (i < mnemonic.Length && ((mnemonic[i] >= '0' && mnemonic[i] <= '9') || mnemonic[i] == 'x'))
+                        i++;
+
+                    return mnemonic.Substring(0, pos) + "?" + mnemonic.Substring(i);
+                }
+            }
+
+            return null;
         }
 
         static void ProcessOpCodeTable(OpCode[] table, byte[] prefixBytes, bool opIsSuffix = false)

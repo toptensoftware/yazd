@@ -1,0 +1,16 @@
+- SCOPE global (no file location)
+  - CONTAINER test.asm (test.asm 1,1)
+    - ORG (test.asm 1,2)
+      - literal 1024
+    - EQU 'vram' (test.asm 3,1)
+      - literal 4660
+    - LABEL 'entry' (test.asm 4,1)
+    - CALL (test.asm 5,2)
+      - identifier 'exit1'
+    - LD (test.asm 6,2)
+      - reg/cond 'a'
+      - deref pointer
+        - add ltr
+          - reg/cond 'ix'
+          - literal 0
+    - LABEL 'exit' (test.asm 9,2)

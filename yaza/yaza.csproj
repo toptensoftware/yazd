@@ -46,9 +46,13 @@
       <Link>OpCodes.cs</Link>
     </Compile>
     <Compile Include="AstElement.cs" />
+    <Compile Include="CodeException.cs" />
     <Compile Include="ExprNode.cs" />
+    <Compile Include="GenerateContext.cs" />
     <Compile Include="Instruction.cs" />
     <Compile Include="LineNumbers.cs" />
+    <Compile Include="Log.cs" />
+    <Compile Include="LayoutContext.cs" />
     <Compile Include="Parser.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

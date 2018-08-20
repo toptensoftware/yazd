@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -9,8 +10,14 @@ namespace yaza
     // Base class for all AST elements
     public abstract class AstElement
     {
+        public AstElement()
+        {
+        }
+
         // The container holding this element
         public AstContainer Container;
+
+        public SourcePosition SourcePosition;
 
         // Find the close containing scope
         public AstScope ContainingScope
@@ -28,15 +35,34 @@ namespace yaza
             }
         }
 
-        public abstract void Dump(int indent);
+        public abstract void Dump(TextWriter w, int indent);
+
+        public virtual void DefineSymbols(AstScope currentScope)
+        {
+        }
+
+        public virtual void Layout(AstScope currentScope, LayoutContext ctx)
+        {
+
+        }
+
+        public virtual void Generate(AstScope currentScope, GenerateContext ctx)
+        {
+
+        }
     }
 
     // Container for other AST elements
     public class AstContainer : AstElement
     {
-        public AstContainer()
+        public AstContainer(string name)
         {
+            _name = name;
         }
+
+        string _name;
+
+        public string Name => _name;
 
         public virtual void AddElement(AstElement element)
         {
@@ -47,23 +73,49 @@ namespace yaza
         protected List<AstElement> _elements = new List<AstElement>();
 
 
-        public override void Dump(int indent)
+        public override void Dump(TextWriter w, int indent)
         {
-            Console.WriteLine($"{Utils.Indent(indent)}- CONTAINER");
+            w.WriteLine($"{Utils.Indent(indent)}- CONTAINER {Name} {SourcePosition.AstDesc()}");
             foreach (var e in _elements)
             {
-                e.Dump(indent + 1);
+                e.Dump(w, indent + 1);
             }
         }
+
+        public override void DefineSymbols(AstScope currentScope)
+        {
+            foreach (var e in _elements)
+            {
+                e.DefineSymbols(currentScope);
+            }
+        }
+
+        public override void Layout(AstScope currentScope, LayoutContext ctx)
+        {
+            foreach (var e in _elements)
+            {
+                e.Layout(currentScope, ctx);
+            }
+        }
+
+        public override void Generate(AstScope currentScope, GenerateContext ctx)
+        {
+            foreach (var e in _elements)
+            {
+                e.Generate(currentScope, ctx);
+            }
+        }
+
     }
 
 
     // Like a container but contains symbol definitions
     public class AstScope : AstContainer
     {
-        public AstScope()
+        public AstScope(string name) : base(name)
         {
         }
+
 
         // Define a symbols value
         public void Define(string symbol, ExprNode node)
@@ -89,27 +141,59 @@ namespace yaza
         // Check if a symbol is defined in this scope or any outer scope
         public bool IsSymbolDefined(string symbol)
         {
-            if (_symbols.ContainsKey(symbol))
-                return true;
+            return FindSymbol(symbol) != null;
+        }
+
+        // Find the definition of a symbol
+        public ExprNode FindSymbol(string symbol)
+        {
+            ExprNode def;
+            if (_symbols.TryGetValue(symbol, out def))
+                return def;
 
             var outerScope = ContainingScope;
             if (outerScope == null)
-                return false;
+                return null;
 
-            return outerScope.IsSymbolDefined(symbol);
+            return outerScope.FindSymbol(symbol);
         }
 
         // Dictionary of symbols in this scope
         Dictionary<string, ExprNode> _symbols = new Dictionary<string, ExprNode>(StringComparer.InvariantCultureIgnoreCase);
 
-        public override void Dump(int indent)
+        public override void Dump(TextWriter w, int indent)
         {
-            Console.WriteLine($"{Utils.Indent(indent)}- SCOPE");
+            w.WriteLine($"{Utils.Indent(indent)}- SCOPE {Name} {SourcePosition.AstDesc()}");
             foreach (var e in _elements)
             {
-                e.Dump(indent + 1);
+                e.Dump(w, indent + 1);
             }
         }
+
+        public void DumpSymbols(TextWriter w)
+        {
+            w.WriteLine("Symbols:");
+            foreach (var kv in _symbols)
+            {
+                w.WriteLine($"    {kv.Key,20}: 0x{kv.Value.Evaluate(this):X4}");
+            }
+        }
+
+        public override void DefineSymbols(AstScope currentScope)
+        {
+            base.DefineSymbols(this);
+        }
+
+        public override void Layout(AstScope currentScope, LayoutContext ctx)
+        {
+            base.Layout(this, ctx);
+        }
+
+        public override void Generate(AstScope currentScope, GenerateContext ctx)
+        {
+            base.Generate(this, ctx);
+        }
+
     }
 
     // "ORG" directive
@@ -121,11 +205,29 @@ namespace yaza
         }
 
         ExprNode _expr;
+        int _address;
 
-        public override void Dump(int indent)
+        public override void Dump(TextWriter w, int indent)
         {
-            Console.WriteLine($"{Utils.Indent(indent)}- ORG");
-            _expr.Dump(indent + 1);
+            w.WriteLine($"{Utils.Indent(indent)}- ORG {SourcePosition.AstDesc()}");
+            _expr.Dump(w, indent + 1);
+        }
+
+        public override void Layout(AstScope currentScope, LayoutContext ctx)
+        {
+            try
+            {
+                ctx.SetOrg(_address = _expr.Evaluate(currentScope));
+            }
+            catch (CodeException x)
+            {
+                Log.Error(x);
+            }
+        }
+
+        public override void Generate(AstScope currentScope, GenerateContext ctx)
+        {
+            ctx.SetOrg(_address);
         }
     }
 
@@ -139,11 +241,11 @@ namespace yaza
 
         protected List<ExprNode> _values = new List<ExprNode>();
 
-        public override void Dump(int indent)
+        public override void Dump(TextWriter w, int indent)
         {
             foreach (var v in _values)
             {
-                v.Dump(indent);
+                v.Dump(w, indent);
             }
         }
     }
@@ -155,10 +257,23 @@ namespace yaza
         {
         }
 
-        public override void Dump(int indent)
+        public override void Dump(TextWriter w, int indent)
         {
-            Console.WriteLine($"{Utils.Indent(indent)}- DB");
-            base.Dump(indent + 1);
+            w.WriteLine($"{Utils.Indent(indent)}- DB {SourcePosition.AstDesc()}");
+            base.Dump(w, indent + 1);
+        }
+
+        public override void Layout(AstScope currentScope, LayoutContext ctx)
+        {
+            ctx.ReserveBytes(_values.Count);
+        }
+
+        public override void Generate(AstScope currentScope, GenerateContext ctx)
+        {
+            foreach (var e in _values)
+            {
+                ctx.EmitByte(e.Evaluate(currentScope));
+            }
         }
     }
 
@@ -169,30 +284,54 @@ namespace yaza
         {
         }
 
-        public override void Dump(int indent)
+        public override void Dump(TextWriter w, int indent)
         {
-            Console.WriteLine($"{Utils.Indent(indent)}- DW");
-            base.Dump(indent + 1);
+            w.WriteLine($"{Utils.Indent(indent)}- DW {SourcePosition.AstDesc()}");
+            base.Dump(w, indent + 1);
+        }
+
+        public override void Layout(AstScope currentScope, LayoutContext ctx)
+        {
+            ctx.ReserveBytes(_values.Count * 2);
+        }
+
+        public override void Generate(AstScope currentScope, GenerateContext ctx)
+        {
+            foreach (var e in _values)
+            {
+                ctx.EmitWord(e.Evaluate(currentScope));
+            }
         }
     }
 
     // Label
     public class AstLabel : AstElement
     {
-        public AstLabel(string name)
+        public AstLabel(string name, SourcePosition position)
         {
             _name = name;
+            _value = new ExprNodeDeferredValue(name, position);
         }
 
         string _name;
-        ExprNode _value = new ExprNodeDeferredValue();
+        ExprNodeDeferredValue _value;
 
         public string Name => _name;
         public ExprNode Value => _value;
 
-        public override void Dump(int indent)
+        public override void Dump(TextWriter w, int indent)
         {
-            Console.WriteLine($"{Utils.Indent(indent)}- LABEL '{_name}'");
+            w.WriteLine($"{Utils.Indent(indent)}- LABEL '{_name}' {SourcePosition.AstDesc()}");
+        }
+
+        public override void DefineSymbols(AstScope currentScope)
+        {
+            currentScope.Define(_name, _value);
+        }
+
+        public override void Layout(AstScope currentScope, LayoutContext ctx)
+        {
+            _value.Resolve(ctx.ip);
         }
 
     }
@@ -212,10 +351,15 @@ namespace yaza
         public string Name => _name;
         public ExprNode Value => _value;
 
-        public override void Dump(int indent)
+        public override void Dump(TextWriter w, int indent)
         {
-            Console.WriteLine($"{Utils.Indent(indent)}- EQU '{_name}'");
-            _value.Dump(indent + 1);
+            w.WriteLine($"{Utils.Indent(indent)}- EQU '{_name}' {SourcePosition.AstDesc()}");
+            _value.Dump(w, indent + 1);
+        }
+
+        public override void DefineSymbols(AstScope currentScope)
+        {
+            currentScope.Define(_name, _value);
         }
     }
 
@@ -231,11 +375,22 @@ namespace yaza
         string _filename;
         AstContainer _content;
 
-        public override void Dump(int indent)
+        public override void Dump(TextWriter w, int indent)
         {
-            Console.WriteLine($"{Utils.Indent(indent)}- INCLUDE '{_filename}'");
-            _content.Dump(indent + 1);
+            w.WriteLine($"{Utils.Indent(indent)}- INCLUDE '{_filename}' {SourcePosition.AstDesc()}");
+            _content.Dump(w, indent + 1);
         }
+
+        public override void Layout(AstScope currentScope, LayoutContext ctx)
+        {
+            _content.Layout(currentScope, ctx);
+        }
+
+        public override void Generate(AstScope currentScope, GenerateContext ctx)
+        {
+            _content.Generate(currentScope, ctx);
+        }
+
     }
 
     // IncBin directive
@@ -250,26 +405,37 @@ namespace yaza
         string _filename;
         byte[] _data;
 
-        public override void Dump(int indent)
+        public override void Dump(TextWriter w, int indent)
         {
-            Console.WriteLine($"{Utils.Indent(indent)}- INCBIN '{_filename}'");
+            w.Write($"{Utils.Indent(indent)}- INCBIN '{_filename}' {SourcePosition.AstDesc()}");
 
             for (int i = 0; i < _data.Length; i++)
             {
                 if ((i % 16) == 0)
-                    Console.Write($"{Utils.Indent(indent + 1)}- ");
-                Console.Write("{0:X2}", _data[i]);
+                    w.Write($"\n{Utils.Indent(indent + 1)}- ");
+                w.Write("{0:X2} ", _data[i]);
             }
 
             if (_data.Length > 0)
-                Console.WriteLine();
+                w.WriteLine();
+        }
+
+        public override void Layout(AstScope currentScope, LayoutContext ctx)
+        {
+            ctx.ReserveBytes(_data.Length);
+        }
+
+        public override void Generate(AstScope currentScope, GenerateContext ctx)
+        {
+            ctx.EmitBytes(_data);
         }
     }
 
     public class AstInstruction : AstElement
     {
-        public AstInstruction(string mnemonic)
+        public AstInstruction(SourcePosition position, string mnemonic)
         {
+            _position = position;
             _mnemonic = mnemonic;
         }
 
@@ -278,16 +444,84 @@ namespace yaza
             _operands.Add(operand);
         }
 
+        SourcePosition _position;
         string _mnemonic;
         List<ExprNode> _operands = new List<ExprNode>();
+        Instruction _instruction;
 
-        public override void Dump(int indent)
+        public override void Dump(TextWriter w, int indent)
         {
-            Console.WriteLine($"{Utils.Indent(indent)}- {_mnemonic.ToUpperInvariant()}");
+            w.WriteLine($"{Utils.Indent(indent)}- {_mnemonic.ToUpperInvariant()} {SourcePosition.AstDesc()}");
             foreach (var o in _operands)
             {
-                o.Dump(indent + 1);
+                o.Dump(w, indent + 1);
             }
+        }
+
+        public override void Layout(AstScope currentScope, LayoutContext ctx)
+        {
+            var sb = new StringBuilder();
+
+            sb.Append(_mnemonic);
+
+            try
+            {
+                for (int i = 0; i < _operands.Count; i++)
+                {
+                    if (i > 0)
+                        sb.Append(",");
+                    else
+                        sb.Append(" ");
+
+                    var o = _operands[i];
+                    switch (o.GetAddressingMode(currentScope))
+                    {
+                        case AddressingMode.DerefImmediate:
+                            sb.Append($"(?)");
+                            break;
+
+                        case AddressingMode.DerefRegister:
+                            sb.Append($"({o.GetRegister()})");
+                            break;
+
+                        case AddressingMode.DerefRegisterPlusImmediate:
+                            sb.Append($"({o.GetRegister()}+?)");
+                            break;
+
+                        case AddressingMode.Immediate:
+                            sb.Append($"?");
+                            break;
+                        case AddressingMode.Register:
+                            sb.Append($"{o.GetRegister()}");
+                            break;
+
+                        case AddressingMode.RegisterPlusImmediate:
+                            sb.Append($"{o.GetRegister()}+?");
+                            break;
+                    }
+                }
+            }
+            catch (CodeException x)
+            {
+                Log.Error(x);
+                return;
+            }
+
+            _instruction = Instruction.Find(sb.ToString());
+
+            if (_instruction == null)
+            {
+                Log.Error(_position, $"invalid addressing mode: {sb.ToString()}");
+            }
+            else
+            {
+                ctx.ReserveBytes(_instruction.Length);
+            }
+        }
+
+        public override void Generate(AstScope currentScope, GenerateContext ctx)
+        {
+            throw new NotImplementedException();
         }
     }
 }

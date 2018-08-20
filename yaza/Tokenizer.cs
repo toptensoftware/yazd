@@ -49,6 +49,8 @@ namespace yaza
         GE,
         NE,
         EQ,
+
+        Unknown,
     }
 
     class Tokenizer
@@ -62,12 +64,13 @@ namespace yaza
         StringSource _source;
 
         Token _token;
-        SourcePosition _tokenPosition;
         string _string;
         int _number;
+        int _tokenPos;
 
         public Token Token => _token;
-        public SourcePosition TokenPosition => _tokenPosition;
+        public SourcePosition TokenPosition => _source.CreatePosition(_tokenPos);
+        public string TokenRaw => _source.Extract(_tokenPos);
         public string TokenString => _string;
         public int TokenNumber => _number;
 
@@ -105,6 +108,72 @@ namespace yaza
             return false;
         }
 
+        public void CheckToken(Token token, string suffix = null)
+        {
+            // If wanting EOL, EOF also allowed
+            if (token == Token.EOL && _token == Token.EOF)
+                return;
+
+            if (_token != token)
+            {
+                if (suffix != null)
+                    throw new CodeException(TokenPosition, $"syntax error: expected {describeToken(token)} {suffix}, found '{TokenRaw}'");
+                else
+                    throw new CodeException(TokenPosition, $"syntax error: expected {describeToken(token)}, found '{TokenRaw}'");
+            }
+        }
+
+        public void SkipToken(Token token)
+        {
+            CheckToken(token);
+            Next();
+        }
+
+        public CodeException Unexpected()
+        {
+            return new CodeException(TokenPosition, $"syntax error: '{TokenRaw}'");
+        }
+
+        static string describeToken(Token token)
+        {
+            switch (token)
+            {
+                case Token.EOF: return "end of file"; 
+                case Token.EOL: return "end of line";
+                case Token.Identifier: return "identifier";
+                case Token.Number: return "number";
+                case Token.String: return "string";
+                case Token.Comma: return "','";
+                case Token.Colon: return "':'";
+                case Token.OpenRound: return "'('";
+                case Token.CloseRound: return "')'";
+                case Token.Plus: return "'+'";
+                case Token.Minus: return "'-'";
+                case Token.Multiply: return "'*'";
+                case Token.Divide: return "'/'";
+                case Token.Modulus: return "'%'";
+                case Token.Assign: return "'-'";
+                case Token.Question: return "'?'";
+                case Token.LogicalAnd: return "&&";
+                case Token.LogicalOr: return "'||'";
+                case Token.LogicalNot: return "'!'";
+                case Token.BitwiseAnd: return "'%";
+                case Token.BitwiseOr: return "|";
+                case Token.BitwiseXor: return "^";
+                case Token.BitwiseComplement: return "~";
+                case Token.Shl: return "<<";
+                case Token.Shr: return ">>";
+                case Token.LT: return "<";
+                case Token.GT: return ">";
+                case Token.LE: return "<=";
+                case Token.GE: return ">=";
+                case Token.NE: return "!=";
+                case Token.EQ: return "==";
+            }
+
+            return "???";
+       }
+
         Token GetNextToken()
         {
             if (_source.EOF)
@@ -114,7 +183,7 @@ namespace yaza
             _source.SkipLinespace();
 
             // Capture the position of the current token
-            _tokenPosition = _source.CapturePosition();
+            _tokenPos = _source.Position;
 
             // $nnnn hex number 
             // (need to do this before IsIdentifier which also acceepts '$')
@@ -271,7 +340,8 @@ namespace yaza
                     return Token.String;
             }
 
-            throw new InvalidDataException(string.Format("Unexpected character in input: '{0}'", _source.Current));
+            _source.Next();
+            return Token.Unknown;
         }
 
         StringBuilder _sb = new StringBuilder();
@@ -286,7 +356,7 @@ namespace yaza
             _sb.Length = 0;
 
             // process characters
-            while (!_source.EOF)
+            while (!_source.EOF && !_source.EOL)
             {
                 // Escape sequence?
                 if (_source.Current == '\\')
@@ -314,7 +384,10 @@ namespace yaza
                             break;
 
                         default:
-                            throw new InvalidDataException(string.Format("Invalid escape sequence in string literal: '\\{0}'", _source.Current));
+                            Log.Warning(_source.CapturePosition(), "invalid escape in string literal");
+                            _sb.Append("\\");
+                            _sb.Append(escape);
+                            break;
                     }
                 }
                 else if (_source.Current == delim)
@@ -333,7 +406,8 @@ namespace yaza
                 _source.Next();
             }
 
-            throw new InvalidDataException("Unterminated string literatl");
+            Log.Warning(_source.CapturePosition(), "unterminated string literal");
+            return _sb.ToString();
         }
 
         int ParseNumber()

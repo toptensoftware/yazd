@@ -407,5 +407,13 @@ namespace yaza
             else
                 return $"{pos.Source.DisplayName}({pos.LineNumber + 1},{pos.CharacterPosition + 1})";
         }
+
+        public static string AstDesc(this SourcePosition pos)
+        {
+            if (pos == null)
+                return "(no file location)";
+            else
+                return $"({pos.Source.DisplayName} {pos.LineNumber + 1},{pos.CharacterPosition + 1})";
+        }
     }
 }

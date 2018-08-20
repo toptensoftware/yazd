@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -70,6 +71,28 @@ namespace yaza
                         Instruction.DumpAll();
                         return false;
 
+                    case "ast":
+                        if (Value != null)
+                        {
+                            _ast = new StreamWriter(Value);
+                        }
+                        else
+                        {
+                            _ast = Console.Out;
+                        }
+                        break;
+
+                    case "symbols":
+                        if (Value != null)
+                        {
+                            _symbols = new StreamWriter(Value);
+                        }
+                        else
+                        {
+                            _symbols = Console.Out;
+                        }
+                        break;
+
                     default:
                         throw new InvalidOperationException(string.Format("Unknown switch '{0}'", arg));
                 }
@@ -86,6 +109,8 @@ namespace yaza
         }
 
         string _inputFile;
+        TextWriter _ast;
+        TextWriter _symbols;
 
         public bool ProcessArgs(IEnumerable<string> args)
         {
@@ -120,6 +145,9 @@ namespace yaza
             Console.WriteLine("Options:");
             Console.WriteLine("  --help                 Show these help instruction");
             Console.WriteLine("  --v                    Show version information");
+            Console.WriteLine("  --instructionList      Display a list of all support instructions");
+            Console.WriteLine("  --ast[:filename]       Dump the AST to filename or stdout");
+            Console.WriteLine("  --symbols[:filename]   Dump symbols to filename or stdout");
 
             Console.WriteLine();
             Console.WriteLine("Numeric arguments can be in decimal (no prefix) or hex if prefixed with '0x'.");
@@ -147,21 +175,68 @@ namespace yaza
                 return 7;
             }
 
-            // Load file
-            var filename = System.IO.Path.GetFullPath(_inputFile);
-            var filetext = System.IO.File.ReadAllText(filename);
-            var source = new StringSource(filetext, _inputFile, filename);
+            // Step 1 - Parse the input file
             var p = new Parser();
-            var root = p.Parse(source);
+            var file = p.Parse(_inputFile, System.IO.Path.GetFullPath(_inputFile));
 
-            root.Dump(0);
+            // Step 2 - Create the root scope and define all symbols
+            var root = new AstScope("global");
+            root.AddElement(file);
+            root.DefineSymbols(null);
+
+            if (_ast != null)
+            {
+                root.Dump(_ast, 0);
+                if (_ast != Console.Out)
+                    _ast.Dispose();
+                _ast = null;
+            }
+
+            // Step 3 - Map instructions
+            var layoutContext = new LayoutContext();
+            root.Layout(null, layoutContext);
+
+            if (Log.ErrorCount == 0)
+            {
+                // Step 4 - Generate Code
+                var generateContext = new GenerateContext(layoutContext);
+
+                root.Generate(null, generateContext);
+            }
+
+
+            // Close symbols file
+            if (_symbols != null)
+            {
+                if (Log.ErrorCount == 0)
+                    root.DumpSymbols(_symbols);
+
+                if (_symbols != Console.Out)
+                    _symbols.Dispose();
+                _symbols = null;
+            }
+
+            Log.DumpSummary();
 
             return 0;
         }
 
         static int Main(string[] args)
         {
-            return new Program().Run(args);
+            try
+            {
+                return new Program().Run(args);
+            }
+            catch (InvalidOperationException x)
+            {
+                Console.WriteLine("{0}", x.Message);
+                return 7;
+            }
+            catch (IOException x)
+            {
+                Console.WriteLine("File Error - {0}", x.Message);
+                return 7;
+            }
         }
     }
 }

@@ -14,6 +14,13 @@ namespace yaza
 
         Tokenizer _tokenizer;
 
+        public AstContainer Parse(string displayName, string location)
+        {
+            var filetext = System.IO.File.ReadAllText(location);
+            var source = new StringSource(filetext, displayName, location);
+            return Parse(source);
+        }
+
         public AstContainer Parse(StringSource source)
         {
             try
@@ -22,13 +29,16 @@ namespace yaza
                 _tokenizer = new Tokenizer(source);
 
                 // Create AST container
-                var container = new AstContainer();
+                var container = new AstContainer(source.DisplayName);
+                container.SourcePosition = _tokenizer.Source.CreatePosition(0);
 
+                // Parse all elements
                 while (_tokenizer.Token != Token.EOF)
                 {
                     ParseIntoContainer(container);
                 }
 
+                // Return the container
                 return container;
             }
             catch
@@ -38,38 +48,54 @@ namespace yaza
             }
         }
 
+        Parser OuterParser
+        {
+            get;
+            set;
+        }
+
+        bool IsParsing(string filename)
+        {
+            if (_tokenizer.Source.Location == filename)
+                return true;
+            if (OuterParser != null)
+                return OuterParser.IsParsing(filename);
+            return false;
+        }
+
         private void ParseIntoContainer(AstContainer container)
         {
-            // Parse an element
-            var elem = ParseAstElement();
-
-            // Anything returned?
-            if (elem != null)
-                container.AddElement(elem);
-
-            // If it's a label, add it to the current scope
-            var label = elem as AstLabel;
-            if (label != null)
+            try
             {
-//                container.ContainingScope.Define(label.Name, label.Value);
-                return;
-            }
+                var pos = _tokenizer.TokenPosition;
 
-            // If it's an equate, add it to the current scope
-            var equ = elem as AstEquate;
-            if (equ != null)
+                // Parse an element
+                var elem = ParseAstElement();
+
+                // Anything returned?
+                if (elem != null)
+                {
+                    elem.SourcePosition = pos;
+                    container.AddElement(elem);
+                }
+
+                // Unless it's a label, we should hit EOL after each element
+                if (!(elem is AstLabel))
+                {
+                    _tokenizer.SkipToken(Token.EOL);
+                }
+            }
+            catch (CodeException x)
             {
-//                container.ContainingScope.Define(equ.Name, equ.Value);
-            }
+                // Log error
+                Log.Error(x.Position, x.Message);
 
-            // Must be eol (or eof) (unless it's a label)
-            if (_tokenizer.Token != Token.EOF && _tokenizer.Token != Token.EOL)
-            {
-                throw new InvalidOperationException(string.Format("Unexpected tokens at end of line: {0}", _tokenizer.Token));
-            }
-
-            // Skip EOL
-            _tokenizer.Next();
+                // Skip to next line
+                while (_tokenizer.Token != Token.EOF && _tokenizer.Token != Token.EOL)
+                {
+                    _tokenizer.Next();
+                }
+           }
         }
 
         AstElement ParseAstElement()
@@ -93,6 +119,13 @@ namespace yaza
             {
                 // Load the include file
                 string includeFile = ParseIncludePath();
+
+                // Check for recursive inclusion of the same file
+                if (IsParsing(includeFile))
+                {
+                    throw new CodeException(_tokenizer.TokenPosition, $"error: recursive include file {_tokenizer.TokenRaw}");
+                }
+
                 string includeText;
                 try
                 {
@@ -100,11 +133,12 @@ namespace yaza
                 }
                 catch (Exception x)
                 {
-                    throw new InvalidOperationException(string.Format("Failed to load include file '{0}' - {1}", includeFile, x.Message));
+                    throw new CodeException(_tokenizer.TokenPosition, $"error: include file '{_tokenizer.TokenRaw}' - {x.Message}");
                 }
 
                 // Parse it
                 var p = new Parser();
+                p.OuterParser = this;
                 var content = p.Parse(new StringSource(includeText, System.IO.Path.GetFileName(includeFile), includeFile));
 
                 // Skip the filename
@@ -118,7 +152,7 @@ namespace yaza
             if (_tokenizer.TrySkipIdentifier("INCBIN"))
             {
                 // Load the include file
-                string includeFile = ParseIncludePath();
+                string includeFile = ParseIncludePath(); 
                 byte[] includeBytes;
                 try
                 {
@@ -126,7 +160,7 @@ namespace yaza
                 }
                 catch (Exception x)
                 {
-                    throw new InvalidOperationException(string.Format("Failed to load incbin file '{0}' - {1}", includeFile, x.Message));
+                    throw new CodeException(_tokenizer.TokenPosition, $"error loading incbin file '{includeFile}' - {x.Message}");
                 }
 
                 // Skip the filename
@@ -152,45 +186,48 @@ namespace yaza
                 return elem;
             }
 
-            // Remember the name
-            var name = _tokenizer.TokenString;
-            _tokenizer.Next();
-
-            // Label or equate?
-            if (_tokenizer.TrySkipToken(Token.Colon))
+            if (_tokenizer.Token == Token.Identifier)
             {
-                // Equate?
+                // Remember the name
+                var pos = _tokenizer.TokenPosition;
+                var name = _tokenizer.TokenString;
+                _tokenizer.Next();
+
+                // Label or equate?
+                if (_tokenizer.TrySkipToken(Token.Colon))
+                {
+                    // Equate?
+                    if (_tokenizer.TrySkipIdentifier("EQU"))
+                    {
+                        return new AstEquate(name, ParseDerefExpression());
+                    }
+
+                    // Label
+                    return new AstLabel(name, pos);
+                }
+
+                // Alternate syntax for EQU (no colon)
                 if (_tokenizer.TrySkipIdentifier("EQU"))
                 {
                     return new AstEquate(name, ParseDerefExpression());
                 }
 
-                // Label
-                return new AstLabel(name);
-            }
+                // Must be an instruction
+                if (Instruction.IsValidInstructionName(name))
+                {
+                    return ParseInstruction(pos, name);
+                }
 
-            // Alternate syntax for EQU (no colon)
-            if (_tokenizer.TrySkipIdentifier("EQU"))
-            {
-                return new AstEquate(name, ParseDerefExpression());
-            }
-
-            // Must be an instruction
-            if (Instruction.IsValidInstructionName(name))
-            {
-                return ParseInstruction(name);
+                throw new CodeException(pos, $"syntax error: '{name}'");
             }
 
             // What?
-            throw new InvalidOperationException(string.Format("Unexpected token: {0}", _tokenizer.Token));
+            throw _tokenizer.Unexpected();
         }
 
         string ParseIncludePath()
         {
-            if (_tokenizer.Token != Token.String)
-            {
-                throw new InvalidOperationException("Expected string filename");
-            }
+            _tokenizer.CheckToken(Token.String, "for filename");
 
             // Look up relative to this file first
             try
@@ -239,9 +276,9 @@ namespace yaza
             }
         }
 
-        AstInstruction ParseInstruction(string name)
+        AstInstruction ParseInstruction(SourcePosition pos, string name)
         {
-            var instruction = new AstInstruction(name);
+            var instruction = new AstInstruction(pos, name);
 
             if (_tokenizer.Token == Token.EOL || _tokenizer.Token == Token.EOF)
                 return instruction;
@@ -271,13 +308,13 @@ namespace yaza
                 if (Instruction.IsConditionFlag(_tokenizer.TokenString) ||
                     Instruction.IsValidRegister(_tokenizer.TokenString))
                 {
-                    var node = new ExprNodeRegisterOrFlag(_tokenizer.TokenString);
+                    var node = new ExprNodeRegisterOrFlag(_tokenizer.TokenPosition, _tokenizer.TokenString);
                     _tokenizer.Next();
                     return node;
                 }
                 else
                 {
-                    var node = new ExprNodeIdentifier(_tokenizer.TokenString);
+                    var node = new ExprNodeIdentifier(_tokenizer.TokenPosition, _tokenizer.TokenString);
                     _tokenizer.Next();
                     return node;
                 }
@@ -287,15 +324,11 @@ namespace yaza
             if (_tokenizer.TrySkipToken(Token.OpenRound))
             {
                 var node = ParseExpression();
-                if (_tokenizer.Token != Token.CloseRound)
-                {
-                    throw new InvalidOperationException("Missing close parens");
-                }
-                _tokenizer.Next();
+                _tokenizer.SkipToken(Token.CloseRound);
                 return node;
             }
 
-            throw new InvalidOperationException(string.Format("Syntax error, unexpected token in expression: '{0}'", _tokenizer.Token));
+            throw _tokenizer.Unexpected();
         }
 
         ExprNode ParseUnary()
@@ -646,8 +679,7 @@ namespace yaza
             {
                 var trueNode = ParseExpression();
 
-                if (!_tokenizer.TrySkipToken(Token.Colon))
-                    throw new InvalidOperationException("Expected ':' in ternery expression");
+                _tokenizer.SkipToken(Token.Colon);
 
                 var falseNode = ParseExpression();
 
@@ -664,16 +696,14 @@ namespace yaza
 
         ExprNode ParseDerefExpression()
         {
+            var pos = _tokenizer.TokenPosition;
             if (!_tokenizer.TrySkipToken(Token.OpenRound))
                 return ParseExpression();
 
-            var node = new ExprNodeDeref();
+            var node = new ExprNodeDeref(pos);
             node.Pointer = ParseExpression();
 
-            if (!_tokenizer.TrySkipToken(Token.CloseRound))
-            {
-                throw new InvalidOperationException("Syntax error: missing close paren");
-            }
+            _tokenizer.SkipToken(Token.CloseRound);
 
             return node;
         }
