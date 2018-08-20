@@ -68,7 +68,7 @@ namespace yaza
                         return false;
 
                     case "instructionList":
-                        Instruction.DumpAll();
+                        InstructionSet.DumpAll();
                         return false;
 
                     case "ast":

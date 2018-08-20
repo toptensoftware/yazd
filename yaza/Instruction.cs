@@ -9,14 +9,98 @@ namespace yaza
 {
     public class Instruction
     {
+        // The simplified version of the mnemonic (ie: with immediate arguments replaced by '?')
         public string mnemonic;
-        public OpCode opCode;
-        public byte[] bytes;
-        public byte[] suffixBytes;
+
+        // Final calculated length of the instruction in bytes
         public int Length;
 
+        // Get just the instruction name from the mnemonic
+        public string InstructionName
+        {
+            get
+            {
+                var space = mnemonic.IndexOf(' ');
+                if (space < 0)
+                    return mnemonic;
+                else
+                    return mnemonic.Substring(0, space);
+            }
+        }
+    }
+
+    // Represents and instruction group (ie: a set of instructions with variations on an immediate value)
+    //  eg: SET 0,(HL), SET 1,(HL), SET 2,(HL) etc.. all form a group
+    // Typically instruction group are the same instruction with a limited set of values implemented
+    // as a bit pattern within the opcodes.  Rather than get into sub-byte bit handling, we just
+    // fake the immediate parameters on top of the underlying instruction definitions
+    public class InstructionGroup : Instruction
+    {
+        public InstructionGroup()
+        {
+        }
+
+        // Add an instruction definition
+        public void AddInstructionDefinition(int imm, InstructionDefinition definition)
+        {
+            // All variations must have the same length
+            if (_immVariations.Count == 0)
+            {
+                Length = definition.Length;
+            }
+            else
+            {
+                System.Diagnostics.Debug.Assert(Length == definition.Length);
+            }
+
+            if (!_immVariations.ContainsKey(imm))
+                _immVariations.Add(imm, definition);
+        }
+
+        // Find the definition for a specified immediate value
+        public InstructionDefinition FindDefinition(int imm)
+        {
+            InstructionDefinition def;
+            if (_immVariations.TryGetValue(imm, out def))
+                return def;
+
+            return null;
+        }
+
+        public IEnumerable<InstructionDefinition> Definitions
+        {
+            get
+            {
+                foreach (var k in _immVariations.OrderBy(x => x.Key))
+                {
+                    yield return k.Value;
+                }
+            }
+        }
+
+        // For instructions that contain hard coded immediate values eg: RST 0x68, SET 7,(HL) etc...
+        // this is a dictionary of of the immediate values to a real final instruction
+        Dictionary<int, InstructionDefinition> _immVariations = new Dictionary<int, InstructionDefinition>();
+    }
+
+
+    // Represents a concrete definition of an instruction
+    public class InstructionDefinition : Instruction
+    { 
+        // The op code definition
+        public OpCode opCode;
+
+        // Instruction bytes (before the immediate values)
+        public byte[] bytes;
+
+        // Instruction suffix bytes (null if none, after the immediate values)
+        public byte[] suffixBytes;
+
+
+        // Prepare this instruction instance
         public void Prepare()
         {
+            // Calculate the length of the instruction in bytes
             Length = bytes.Length;
             if (suffixBytes != null)
                 Length += suffixBytes.Length;
@@ -36,30 +120,7 @@ namespace yaza
                         break;
                 }
             }
-
         }
-
-        // Given a mnemonic pattern, find the associated instruction
-        public static Instruction Find(string mnemonic)
-        {
-            Instruction op;
-            if (!_opMap.TryGetValue(mnemonic, out op))
-                return null;
-            return op;
-        }
-
-        public string InstructionName
-        {
-            get
-            {
-                var space = mnemonic.IndexOf(' ');
-                if (space < 0)
-                    return mnemonic;
-                else
-                    return mnemonic.Substring(0, space);
-            }
-        }
-
 
         public void Dump()
         {
@@ -121,175 +182,5 @@ namespace yaza
 
             Console.WriteLine(mnemonic);
         }
-
-        static Dictionary<string, Instruction> _opMap = new Dictionary<string, Instruction>(StringComparer.InvariantCultureIgnoreCase);
-
-        static string KeyOfMnemonic(string mnemonic)
-        {
-            return mnemonic
-                .Replace('%', '?')
-                .Replace('@', '?')
-                .Replace('#', '?')
-                .Replace('$', '?');
-        }
-
-        static void AddInstruction(Instruction instruction)
-        {
-            instruction.Prepare();
-
-            string key = KeyOfMnemonic(instruction.mnemonic);
-
-            var bitimm = ReplaceBitImmediates(key);
-            if (bitimm != null)
-            {
-                Console.WriteLine($"{key} => {bitimm}");
-            }
-
-
-            Instruction existing;
-            if (_opMap.TryGetValue(key, out existing))
-            {
-                /*
-                if (existing.opCode.mnemonic != instruction.opCode.mnemonic)
-                {
-                    Console.WriteLine("Arg overload: {0}", instruction.opCode.mnemonic);
-                }
-                else
-                {
-                    Console.WriteLine("Duplicate mnemonic: {0}", instruction.opCode.mnemonic);
-                }
-                */
-            }
-            else
-            {
-                _opMap.Add(key, instruction);
-            }
-        }
-
-        static string ReplaceBitImmediates(string mnemonic)
-        {
-            var spacePos = mnemonic.IndexOf(' ');
-            if (spacePos < 0)
-                return null;
-
-            for (int i = spacePos+1; i < mnemonic.Length; i++)
-            {
-                var ch = mnemonic[i];
-
-                // Digit?
-                if (ch >= '0' && ch <= '9')
-                {
-                    int pos = i;
-                    while (i < mnemonic.Length && ((mnemonic[i] >= '0' && mnemonic[i] <= '9') || mnemonic[i] == 'x'))
-                        i++;
-
-                    return mnemonic.Substring(0, pos) + "?" + mnemonic.Substring(i);
-                }
-            }
-
-            return null;
-        }
-
-        static void ProcessOpCodeTable(OpCode[] table, byte[] prefixBytes, bool opIsSuffix = false)
-        {
-            for (int i = 0; i < table.Length; i++)
-            {
-                var opCode = table[i];
-                if (opCode.mnemonic == null || opCode.mnemonic.StartsWith("shift") || opCode.mnemonic.StartsWith("ignore"))
-                    continue;
-
-                // Create the bytes
-                byte[] bytes;
-                byte[] suffixBytes = null;
-                if (opIsSuffix)
-                {
-                    bytes = prefixBytes;
-                    suffixBytes = new byte[] { (byte)i };
-                }
-                else
-                {
-                    bytes = new byte[prefixBytes.Length + 1];
-                    Array.Copy(prefixBytes, bytes, prefixBytes.Length);
-                    bytes[prefixBytes.Length] = (byte)i;
-                }
-
-                // Create the instruction
-                AddInstruction(new Instruction()
-                {
-                    bytes = bytes,
-                    suffixBytes = suffixBytes,
-                    opCode = opCode,
-                    mnemonic = opCode.mnemonic,
-                });
-
-
-                if (opCode.altMnemonic != null)
-                {
-                    AddInstruction(new Instruction()
-                    {
-                        bytes = bytes,
-                        suffixBytes = suffixBytes,
-                        opCode = opCode,
-                        mnemonic = opCode.altMnemonic,
-                    });
-                }
-            }
-        }
-
-        static HashSet<string> _instructionNames;
-
-        public static bool IsValidInstructionName(string name)
-        {
-            return _instructionNames.Contains(name);
-        }
-
-        static string[] _registerNames = new string[]
-        {
-            "AF", "AF'", "I",
-            "A", "B", "C", "D", "E", "H", "L",
-            "DE", "HL", "SP",
-            "IX", "IY", "IXH", "IXL", "IYH", "IYL",
-        };
-        static HashSet<string> _registerNameMap = new HashSet<string>(_registerNames, StringComparer.InvariantCultureIgnoreCase);
-        public static bool IsValidRegister(string name)
-        {
-            return _registerNameMap.Contains(name);
-        }
-
-        static string[] _conditionFlags = new string[]
-        {
-            "Z", "NZ", "C", "NC", "PE", "P", "PO", 
-        };
-        static HashSet<string> _conditionFlagMap = new HashSet<string>(_conditionFlags, StringComparer.InvariantCultureIgnoreCase);
-        public static bool IsConditionFlag(string name)
-        {
-            return _conditionFlagMap.Contains(name);
-        }
-
-
-        static Instruction()
-        {
-            ProcessOpCodeTable(OpCodes.dasm_base, new byte[0]);
-            ProcessOpCodeTable(OpCodes.dasm_ed, new byte[] { 0xED });
-            ProcessOpCodeTable(OpCodes.dasm_cb, new byte[] { 0xCB });
-            ProcessOpCodeTable(OpCodes.dasm_dd, new byte[] { 0xDD });
-            ProcessOpCodeTable(OpCodes.dasm_fd, new byte[] { 0xFD });
-            ProcessOpCodeTable(OpCodes.dasm_ddcb, new byte[] { 0xDD, 0xCB }, true);
-            ProcessOpCodeTable(OpCodes.dasm_fdcb, new byte[] { 0xFD, 0xCB }, true);
-
-            // Build a list of all instruction names
-            _instructionNames = new HashSet<string>(_opMap.Values.Select(x=>x.InstructionName), StringComparer.InvariantCultureIgnoreCase);
-        }
-
-        public static void DumpAll()
-        {
-            foreach (var m in _opMap.Values.OrderBy(x => x.mnemonic))
-            {
-                m.Dump();
-            }
-        }
     }
-
-
-
 }

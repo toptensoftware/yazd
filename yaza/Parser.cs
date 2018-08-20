@@ -213,7 +213,7 @@ namespace yaza
                 }
 
                 // Must be an instruction
-                if (Instruction.IsValidInstructionName(name))
+                if (InstructionSet.IsValidInstructionName(name))
                 {
                     return ParseInstruction(pos, name);
                 }
@@ -305,8 +305,8 @@ namespace yaza
             if (_tokenizer.Token == Token.Identifier)
             {
                 // Special identifier
-                if (Instruction.IsConditionFlag(_tokenizer.TokenString) ||
-                    Instruction.IsValidRegister(_tokenizer.TokenString))
+                if (InstructionSet.IsConditionFlag(_tokenizer.TokenString) ||
+                    InstructionSet.IsValidRegister(_tokenizer.TokenString))
                 {
                     var node = new ExprNodeRegisterOrFlag(_tokenizer.TokenPosition, _tokenizer.TokenString);
                     _tokenizer.Next();

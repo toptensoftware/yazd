@@ -50,6 +50,7 @@
     <Compile Include="ExprNode.cs" />
     <Compile Include="GenerateContext.cs" />
     <Compile Include="Instruction.cs" />
+    <Compile Include="InstructionSet.cs" />
     <Compile Include="LineNumbers.cs" />
     <Compile Include="Log.cs" />
     <Compile Include="LayoutContext.cs" />

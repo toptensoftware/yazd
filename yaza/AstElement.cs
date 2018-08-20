@@ -507,7 +507,7 @@ namespace yaza
                 return;
             }
 
-            _instruction = Instruction.Find(sb.ToString());
+            _instruction = InstructionSet.Find(sb.ToString());
 
             if (_instruction == null)
             {
