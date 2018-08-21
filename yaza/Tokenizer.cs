@@ -436,13 +436,6 @@ namespace yaza
                 return Convert.ToInt32(hexNumber, 16);
             }
 
-            // Hex number
-            if (_source.SkipI("0b"))
-            {
-                var hexNumber = _source.SkipAndExtract(IsBinaryDigit);
-                return Convert.ToInt32(hexNumber, 2);
-            }
-
             // Hex, decimal, or binary number
             var number = _source.SkipAndExtract(IsHexDigit);
 
@@ -450,6 +443,12 @@ namespace yaza
             if (_source.SkipI('h'))
             {
                 return Convert.ToInt32(number, 16);
+            }
+
+            // Hex number
+            if (number.StartsWith("0b"))
+            {
+                return Convert.ToInt32(number.Substring(2), 2);
             }
 
             // Octal?
