@@ -27,7 +27,15 @@ namespace yazd
 			return r;
 		}
 
-		public static ushort LabelledRangeLow = 0;
+        public static string FormatSignedByte(sbyte b)
+        {
+            if (b < 0)
+                return "-" + FormatByte((byte)-b);
+            else
+                return FormatByte((byte)b);
+        }
+
+        public static ushort LabelledRangeLow = 0;
 		public static ushort LabelledRangeHigh = 0;
 		public static bool LowerCase = false;
 		public static bool HtmlMode = false;
@@ -178,8 +186,14 @@ namespace yazd
 								}
 
 								if (ch == '$')
-									sb.Append(FormatByte((byte)disp));
-								else
+                                {
+                                    if ((sbyte)disp < 0 && sb[sb.Length-1] == '+')
+                                    {
+                                        sb.Length--;
+                                    }
+                                    sb.Append(FormatSignedByte((sbyte)disp));
+                                }
+                                else
 								{
 									jump_addr = (ushort)(addr + disp);
 									have_jump_addr = true;
