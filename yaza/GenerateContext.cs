@@ -57,15 +57,18 @@ namespace yaza
 
             _listPosition = _sourceFileStack.Pop();
 
-            if (ListFile != null && _listPosition != null)
+            if (ListFile != null)
             {
-                ListFile.WriteLine();
-                ListFile.WriteLine($"{new string(' ', ListColumnWidth)}---------------------------------");
-                ListFile.WriteLine();
-            }
-            else
-            {
-                ListFile.WriteLine($"{ip:X4}:");
+                if (_listPosition != null)
+                {
+                    ListFile.WriteLine();
+                    ListFile.WriteLine($"{new string(' ', ListColumnWidth)}---------------------------------");
+                    ListFile.WriteLine();
+                }
+                else
+                {
+                    ListFile.WriteLine($"{ip:X4}:");
+                }
             }
         }
 
@@ -250,6 +253,7 @@ namespace yaza
         }
 
         // Emit a signed byte (must be between -128 and 127)
+        /*
         public void EmitSignedByte(SourcePosition pos, int value)
         {
             // Check range (yes, sbyte and byte)
@@ -262,6 +266,7 @@ namespace yaza
 
             Emit((byte)(value & 0xFF));
         }
+        */
 
         // Emit a relative offset where addr is the address
         // And the current instruction address is current IP
