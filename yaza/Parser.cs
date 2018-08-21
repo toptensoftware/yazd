@@ -245,7 +245,7 @@ namespace yaza
                     // Equate?
                     if (_tokenizer.TrySkipIdentifier("EQU"))
                     {
-                        return new AstEquate(name, ParseDerefExpression());
+                        return new AstEquate(name, ParseOperandExpression());
                     }
 
                     // Label
@@ -255,7 +255,7 @@ namespace yaza
                 // Alternate syntax for EQU (no colon)
                 if (_tokenizer.TrySkipIdentifier("EQU"))
                 {
-                    return new AstEquate(name, ParseDerefExpression());
+                    return new AstEquate(name, ParseOperandExpression());
                 }
 
                 // Must be an instruction
@@ -362,7 +362,7 @@ namespace yaza
 
             while (true)
             {
-                instruction.AddOperand(ParseDerefExpression());
+                instruction.AddOperand(ParseOperandExpression());
                 if (!_tokenizer.TrySkipToken(Token.Comma))
                     return instruction;
             }
@@ -780,18 +780,33 @@ namespace yaza
             return condition;
         }
 
-        ExprNode ParseDerefExpression()
+        ExprNode ParseOperandExpression()
         {
+            // Save position
             var pos = _tokenizer.TokenPosition;
-            if (!_tokenizer.TrySkipToken(Token.OpenRound))
-                return ParseExpression();
 
-            var node = new ExprNodeDeref(pos);
-            node.Pointer = ParseExpression();
+            // Deref
+            if (_tokenizer.TrySkipToken(Token.OpenRound))
+            {
+                var node = new ExprNodeDeref(pos);
+                node.Pointer = ParseExpression();
 
-            _tokenizer.SkipToken(Token.CloseRound);
+                _tokenizer.SkipToken(Token.CloseRound);
 
-            return node;
+                return node;
+            }
+
+            // Is it a sub op?
+            if (_tokenizer.Token == Token.Identifier && InstructionSet.IsValidSubOpName(_tokenizer.TokenString))
+            {
+                var subOp = new ExprNodeSubOp(_tokenizer.TokenString);
+                _tokenizer.Next();
+                subOp.RHS = ParseOperandExpression();
+                return subOp;
+            }
+
+            // Normal expression
+            return ParseExpression();
         }
     }
 }

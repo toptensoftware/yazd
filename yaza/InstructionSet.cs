@@ -170,6 +170,9 @@ namespace yaza
                 if (opCode.mnemonic == null || opCode.mnemonic.StartsWith("shift") || opCode.mnemonic.StartsWith("ignore"))
                     continue;
 
+                if ((opCode.flags & OpCodeFlags.NoAsm) != 0)
+                    continue;
+
                 // Create the bytes
                 byte[] bytes;
                 byte[] suffixBytes = null;
@@ -258,9 +261,9 @@ namespace yaza
         #region Register Names
         static string[] _registerNames = new string[]
         {
-            "AF", "AF'", "I",
+            "AF", "AF'", "I", "R",
             "A", "B", "C", "D", "E", "H", "L",
-            "DE", "HL", "SP",
+            "BC", "DE", "HL", "SP",
             "IX", "IY", "IXH", "IXL", "IYH", "IYL",
         };
         static HashSet<string> _registerNameMap = new HashSet<string>(_registerNames, StringComparer.InvariantCultureIgnoreCase);
@@ -273,7 +276,7 @@ namespace yaza
         #region Condition Flag Names
         static string[] _conditionFlags = new string[]
         {
-            "Z", "NZ", "C", "NC", "PE", "P", "PO",
+            "Z", "NZ", "C", "NC", "PE", "P", "PO", "M",
         };
         static HashSet<string> _conditionFlagMap = new HashSet<string>(_conditionFlags, StringComparer.InvariantCultureIgnoreCase);
         public static bool IsConditionFlag(string name)

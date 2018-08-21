@@ -19,6 +19,7 @@ namespace yazd
 		PortRef = 0x0020,	// IN or OUT instruction
 		Call = 0x0040,
         ImplicitA = 0x0080, // Implicit accumulator register eg: ADD B
+        NoAsm = 0x0100,     // Ignore this instruction in the assembler
 	}
 
 	public class OpCode
@@ -1443,68 +1444,68 @@ namespace yazd
 			new OpCode( "LD L,SRL (IX+$)"   , 23 ,  0 ), /* 3D */
 			new OpCode( "SRL (IX+$)"        , 23 ,  0 ), /* 3E */
 			new OpCode( "LD A,SRL (IX+$)"   , 23 ,  0 ), /* 3F */
-			new OpCode( "BIT 0,(IX+$)"      , 20 ,  0 ), /* 40 */
-			new OpCode( "BIT 0,(IX+$)"      , 20 ,  0 ), /* 41 */
-			new OpCode( "BIT 0,(IX+$)"      , 20 ,  0 ), /* 42 */
-			new OpCode( "BIT 0,(IX+$)"      , 20 ,  0 ), /* 43 */
-			new OpCode( "BIT 0,(IX+$)"      , 20 ,  0 ), /* 44 */
-			new OpCode( "BIT 0,(IX+$)"      , 20 ,  0 ), /* 45 */
+			new OpCode( "BIT 0,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm), /* 40 */
+			new OpCode( "BIT 0,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 41 */
+			new OpCode( "BIT 0,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 42 */
+			new OpCode( "BIT 0,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 43 */
+			new OpCode( "BIT 0,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 44 */
+			new OpCode( "BIT 0,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 45 */
 			new OpCode( "BIT 0,(IX+$)"      , 20 ,  0 ), /* 46 */
-			new OpCode( "BIT 0,(IX+$)"      , 20 ,  0 ), /* 47 */
-			new OpCode( "BIT 1,(IX+$)"      , 20 ,  0 ), /* 48 */
-			new OpCode( "BIT 1,(IX+$)"      , 20 ,  0 ), /* 49 */
-			new OpCode( "BIT 1,(IX+$)"      , 20 ,  0 ), /* 4A */
-			new OpCode( "BIT 1,(IX+$)"      , 20 ,  0 ), /* 4B */
-			new OpCode( "BIT 1,(IX+$)"      , 20 ,  0 ), /* 4C */
-			new OpCode( "BIT 1,(IX+$)"      , 20 ,  0 ), /* 4D */
+			new OpCode( "BIT 0,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 47 */
+			new OpCode( "BIT 1,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 48 */
+			new OpCode( "BIT 1,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 49 */
+			new OpCode( "BIT 1,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 4A */
+			new OpCode( "BIT 1,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 4B */
+			new OpCode( "BIT 1,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 4C */
+			new OpCode( "BIT 1,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 4D */
 			new OpCode( "BIT 1,(IX+$)"      , 20 ,  0 ), /* 4E */
-			new OpCode( "BIT 1,(IX+$)"      , 20 ,  0 ), /* 4F */
-			new OpCode( "BIT 2,(IX+$)"      , 20 ,  0 ), /* 50 */
-			new OpCode( "BIT 2,(IX+$)"      , 20 ,  0 ), /* 51 */
-			new OpCode( "BIT 2,(IX+$)"      , 20 ,  0 ), /* 52 */
-			new OpCode( "BIT 2,(IX+$)"      , 20 ,  0 ), /* 53 */
-			new OpCode( "BIT 2,(IX+$)"      , 20 ,  0 ), /* 54 */
-			new OpCode( "BIT 2,(IX+$)"      , 20 ,  0 ), /* 55 */
+			new OpCode( "BIT 1,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 4F */
+			new OpCode( "BIT 2,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 50 */
+			new OpCode( "BIT 2,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 51 */
+			new OpCode( "BIT 2,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 52 */
+			new OpCode( "BIT 2,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 53 */
+			new OpCode( "BIT 2,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 54 */
+			new OpCode( "BIT 2,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 55 */
 			new OpCode( "BIT 2,(IX+$)"      , 20 ,  0 ), /* 56 */
-			new OpCode( "BIT 2,(IX+$)"      , 20 ,  0 ), /* 57 */
-			new OpCode( "BIT 3,(IX+$)"      , 20 ,  0 ), /* 58 */
-			new OpCode( "BIT 3,(IX+$)"      , 20 ,  0 ), /* 59 */
-			new OpCode( "BIT 3,(IX+$)"      , 20 ,  0 ), /* 5A */
-			new OpCode( "BIT 3,(IX+$)"      , 20 ,  0 ), /* 5B */
-			new OpCode( "BIT 3,(IX+$)"      , 20 ,  0 ), /* 5C */
-			new OpCode( "BIT 3,(IX+$)"      , 20 ,  0 ), /* 5D */
+			new OpCode( "BIT 2,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 57 */
+			new OpCode( "BIT 3,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 58 */
+			new OpCode( "BIT 3,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 59 */
+			new OpCode( "BIT 3,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 5A */
+			new OpCode( "BIT 3,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 5B */
+			new OpCode( "BIT 3,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 5C */
+			new OpCode( "BIT 3,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 5D */
 			new OpCode( "BIT 3,(IX+$)"      , 20 ,  0 ), /* 5E */
-			new OpCode( "BIT 3,(IX+$)"      , 20 ,  0 ), /* 5F */
-			new OpCode( "BIT 4,(IX+$)"      , 20 ,  0 ), /* 60 */
-			new OpCode( "BIT 4,(IX+$)"      , 20 ,  0 ), /* 61 */
-			new OpCode( "BIT 4,(IX+$)"      , 20 ,  0 ), /* 62 */
-			new OpCode( "BIT 4,(IX+$)"      , 20 ,  0 ), /* 63 */
-			new OpCode( "BIT 4,(IX+$)"      , 20 ,  0 ), /* 64 */
-			new OpCode( "BIT 4,(IX+$)"      , 20 ,  0 ), /* 65 */
+			new OpCode( "BIT 3,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 5F */
+			new OpCode( "BIT 4,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 60 */
+			new OpCode( "BIT 4,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 61 */
+			new OpCode( "BIT 4,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 62 */
+			new OpCode( "BIT 4,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 63 */
+			new OpCode( "BIT 4,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 64 */
+			new OpCode( "BIT 4,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 65 */
 			new OpCode( "BIT 4,(IX+$)"      , 20 ,  0 ), /* 66 */
-			new OpCode( "BIT 4,(IX+$)"      , 20 ,  0 ), /* 67 */
-			new OpCode( "BIT 5,(IX+$)"      , 20 ,  0 ), /* 68 */
-			new OpCode( "BIT 5,(IX+$)"      , 20 ,  0 ), /* 69 */
-			new OpCode( "BIT 5,(IX+$)"      , 20 ,  0 ), /* 6A */
-			new OpCode( "BIT 5,(IX+$)"      , 20 ,  0 ), /* 6B */
-			new OpCode( "BIT 5,(IX+$)"      , 20 ,  0 ), /* 6C */
-			new OpCode( "BIT 5,(IX+$)"      , 20 ,  0 ), /* 6D */
+			new OpCode( "BIT 4,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 67 */
+			new OpCode( "BIT 5,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 68 */
+			new OpCode( "BIT 5,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 69 */
+			new OpCode( "BIT 5,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 6A */
+			new OpCode( "BIT 5,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 6B */
+			new OpCode( "BIT 5,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 6C */
+			new OpCode( "BIT 5,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 6D */
 			new OpCode( "BIT 5,(IX+$)"      , 20 ,  0 ), /* 6E */
-			new OpCode( "BIT 5,(IX+$)"      , 20 ,  0 ), /* 6F */
-			new OpCode( "BIT 6,(IX+$)"      , 20 ,  0 ), /* 70 */
-			new OpCode( "BIT 6,(IX+$)"      , 20 ,  0 ), /* 71 */
-			new OpCode( "BIT 6,(IX+$)"      , 20 ,  0 ), /* 72 */
-			new OpCode( "BIT 6,(IX+$)"      , 20 ,  0 ), /* 73 */
-			new OpCode( "BIT 6,(IX+$)"      , 20 ,  0 ), /* 74 */
-			new OpCode( "BIT 6,(IX+$)"      , 20 ,  0 ), /* 75 */
+			new OpCode( "BIT 5,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 6F */
+			new OpCode( "BIT 6,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 70 */
+			new OpCode( "BIT 6,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 71 */
+			new OpCode( "BIT 6,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 72 */
+			new OpCode( "BIT 6,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 73 */
+			new OpCode( "BIT 6,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 74 */
+			new OpCode( "BIT 6,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 75 */
 			new OpCode( "BIT 6,(IX+$)"      , 20 ,  0 ), /* 76 */
-			new OpCode( "BIT 6,(IX+$)"      , 20 ,  0 ), /* 77 */
-			new OpCode( "BIT 7,(IX+$)"      , 20 ,  0 ), /* 78 */
-			new OpCode( "BIT 7,(IX+$)"      , 20 ,  0 ), /* 79 */
-			new OpCode( "BIT 7,(IX+$)"      , 20 ,  0 ), /* 7A */
-			new OpCode( "BIT 7,(IX+$)"      , 20 ,  0 ), /* 7B */
-			new OpCode( "BIT 7,(IX+$)"      , 20 ,  0 ), /* 7C */
-			new OpCode( "BIT 7,(IX+$)"      , 20 ,  0 ), /* 7D */
+			new OpCode( "BIT 6,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 77 */
+			new OpCode( "BIT 7,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 78 */
+			new OpCode( "BIT 7,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 79 */
+			new OpCode( "BIT 7,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 7A */
+			new OpCode( "BIT 7,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 7B */
+			new OpCode( "BIT 7,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 7C */
+			new OpCode( "BIT 7,(IX+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 7D */
 			new OpCode( "BIT 7,(IX+$)"      , 20 ,  0 ), /* 7E */
 			new OpCode( "BIT 7,(IX+$)"      , 20 ,  0 ), /* 7F */
 			new OpCode( "LD B,RES 0,(IX+$)" , 23 ,  0 ), /* 80 */
@@ -1705,70 +1706,70 @@ namespace yazd
 			new OpCode( "LD L,SRL (IY+$)"   , 23 ,  0 ), /* 3D */
 			new OpCode( "SRL (IY+$)"        , 23 ,  0 ), /* 3E */
 			new OpCode( "LD A,SRL (IY+$)"   , 23 ,  0 ), /* 3F */
-			new OpCode( "BIT 0,(IY+$)"      , 20 ,  0 ), /* 40 */
-			new OpCode( "BIT 0,(IY+$)"      , 20 ,  0 ), /* 41 */
-			new OpCode( "BIT 0,(IY+$)"      , 20 ,  0 ), /* 42 */
-			new OpCode( "BIT 0,(IY+$)"      , 20 ,  0 ), /* 43 */
-			new OpCode( "BIT 0,(IY+$)"      , 20 ,  0 ), /* 44 */
-			new OpCode( "BIT 0,(IY+$)"      , 20 ,  0 ), /* 45 */
+			new OpCode( "BIT 0,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 40 */
+			new OpCode( "BIT 0,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 41 */
+			new OpCode( "BIT 0,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 42 */
+			new OpCode( "BIT 0,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 43 */
+			new OpCode( "BIT 0,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 44 */
+			new OpCode( "BIT 0,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 45 */
 			new OpCode( "BIT 0,(IY+$)"      , 20 ,  0 ), /* 46 */
-			new OpCode( "BIT 0,(IY+$)"      , 20 ,  0 ), /* 47 */
-			new OpCode( "BIT 1,(IY+$)"      , 20 ,  0 ), /* 48 */
-			new OpCode( "BIT 1,(IY+$)"      , 20 ,  0 ), /* 49 */
-			new OpCode( "BIT 1,(IY+$)"      , 20 ,  0 ), /* 4A */
-			new OpCode( "BIT 1,(IY+$)"      , 20 ,  0 ), /* 4B */
-			new OpCode( "BIT 1,(IY+$)"      , 20 ,  0 ), /* 4C */
-			new OpCode( "BIT 1,(IY+$)"      , 20 ,  0 ), /* 4D */
+			new OpCode( "BIT 0,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 47 */
+			new OpCode( "BIT 1,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 48 */
+			new OpCode( "BIT 1,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 49 */
+			new OpCode( "BIT 1,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 4A */
+			new OpCode( "BIT 1,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 4B */
+			new OpCode( "BIT 1,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 4C */
+			new OpCode( "BIT 1,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 4D */
 			new OpCode( "BIT 1,(IY+$)"      , 20 ,  0 ), /* 4E */
-			new OpCode( "BIT 1,(IY+$)"      , 20 ,  0 ), /* 4F */
-			new OpCode( "BIT 2,(IY+$)"      , 20 ,  0 ), /* 50 */
-			new OpCode( "BIT 2,(IY+$)"      , 20 ,  0 ), /* 51 */
-			new OpCode( "BIT 2,(IY+$)"      , 20 ,  0 ), /* 52 */
-			new OpCode( "BIT 2,(IY+$)"      , 20 ,  0 ), /* 53 */
-			new OpCode( "BIT 2,(IY+$)"      , 20 ,  0 ), /* 54 */
-			new OpCode( "BIT 2,(IY+$)"      , 20 ,  0 ), /* 55 */
+			new OpCode( "BIT 1,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 4F */
+			new OpCode( "BIT 2,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 50 */
+			new OpCode( "BIT 2,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 51 */
+			new OpCode( "BIT 2,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 52 */
+			new OpCode( "BIT 2,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 53 */
+			new OpCode( "BIT 2,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 54 */
+			new OpCode( "BIT 2,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 55 */
 			new OpCode( "BIT 2,(IY+$)"      , 20 ,  0 ), /* 56 */
-			new OpCode( "BIT 2,(IY+$)"      , 20 ,  0 ), /* 57 */
-			new OpCode( "BIT 3,(IY+$)"      , 20 ,  0 ), /* 58 */
-			new OpCode( "BIT 3,(IY+$)"      , 20 ,  0 ), /* 59 */
-			new OpCode( "BIT 3,(IY+$)"      , 20 ,  0 ), /* 5A */
-			new OpCode( "BIT 3,(IY+$)"      , 20 ,  0 ), /* 5B */
-			new OpCode( "BIT 3,(IY+$)"      , 20 ,  0 ), /* 5C */
-			new OpCode( "BIT 3,(IY+$)"      , 20 ,  0 ), /* 5D */
+			new OpCode( "BIT 2,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 57 */
+			new OpCode( "BIT 3,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 58 */
+			new OpCode( "BIT 3,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 59 */
+			new OpCode( "BIT 3,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 5A */
+			new OpCode( "BIT 3,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 5B */
+			new OpCode( "BIT 3,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 5C */
+			new OpCode( "BIT 3,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 5D */
 			new OpCode( "BIT 3,(IY+$)"      , 20 ,  0 ), /* 5E */
-			new OpCode( "BIT 3,(IY+$)"      , 20 ,  0 ), /* 5F */
-			new OpCode( "BIT 4,(IY+$)"      , 20 ,  0 ), /* 60 */
-			new OpCode( "BIT 4,(IY+$)"      , 20 ,  0 ), /* 61 */
-			new OpCode( "BIT 4,(IY+$)"      , 20 ,  0 ), /* 62 */
-			new OpCode( "BIT 4,(IY+$)"      , 20 ,  0 ), /* 63 */
-			new OpCode( "BIT 4,(IY+$)"      , 20 ,  0 ), /* 64 */
-			new OpCode( "BIT 4,(IY+$)"      , 20 ,  0 ), /* 65 */
+			new OpCode( "BIT 3,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 5F */
+			new OpCode( "BIT 4,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 60 */
+			new OpCode( "BIT 4,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 61 */
+			new OpCode( "BIT 4,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 62 */
+			new OpCode( "BIT 4,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 63 */
+			new OpCode( "BIT 4,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 64 */
+			new OpCode( "BIT 4,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 65 */
 			new OpCode( "BIT 4,(IY+$)"      , 20 ,  0 ), /* 66 */
-			new OpCode( "BIT 4,(IY+$)"      , 20 ,  0 ), /* 67 */
-			new OpCode( "BIT 5,(IY+$)"      , 20 ,  0 ), /* 68 */
-			new OpCode( "BIT 5,(IY+$)"      , 20 ,  0 ), /* 69 */
-			new OpCode( "BIT 5,(IY+$)"      , 20 ,  0 ), /* 6A */
-			new OpCode( "BIT 5,(IY+$)"      , 20 ,  0 ), /* 6B */
-			new OpCode( "BIT 5,(IY+$)"      , 20 ,  0 ), /* 6C */
-			new OpCode( "BIT 5,(IY+$)"      , 20 ,  0 ), /* 6D */
+			new OpCode( "BIT 4,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 67 */
+			new OpCode( "BIT 5,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 68 */
+			new OpCode( "BIT 5,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 69 */
+			new OpCode( "BIT 5,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 6A */
+			new OpCode( "BIT 5,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 6B */
+			new OpCode( "BIT 5,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 6C */
+			new OpCode( "BIT 5,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 6D */
 			new OpCode( "BIT 5,(IY+$)"      , 20 ,  0 ), /* 6E */
-			new OpCode( "BIT 5,(IY+$)"      , 20 ,  0 ), /* 6F */
-			new OpCode( "BIT 6,(IY+$)"      , 20 ,  0 ), /* 70 */
-			new OpCode( "BIT 6,(IY+$)"      , 20 ,  0 ), /* 71 */
-			new OpCode( "BIT 6,(IY+$)"      , 20 ,  0 ), /* 72 */
-			new OpCode( "BIT 6,(IY+$)"      , 20 ,  0 ), /* 73 */
-			new OpCode( "BIT 6,(IY+$)"      , 20 ,  0 ), /* 74 */
-			new OpCode( "BIT 6,(IY+$)"      , 20 ,  0 ), /* 75 */
+			new OpCode( "BIT 5,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 6F */
+			new OpCode( "BIT 6,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 70 */
+			new OpCode( "BIT 6,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 71 */
+			new OpCode( "BIT 6,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 72 */
+			new OpCode( "BIT 6,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 73 */
+			new OpCode( "BIT 6,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 74 */
+			new OpCode( "BIT 6,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 75 */
 			new OpCode( "BIT 6,(IY+$)"      , 20 ,  0 ), /* 76 */
-			new OpCode( "BIT 6,(IY+$)"      , 20 ,  0 ), /* 77 */
-			new OpCode( "BIT 7,(IY+$)"      , 20 ,  0 ), /* 78 */
-			new OpCode( "BIT 7,(IY+$)"      , 20 ,  0 ), /* 79 */
-			new OpCode( "BIT 7,(IY+$)"      , 20 ,  0 ), /* 7A */
-			new OpCode( "BIT 7,(IY+$)"      , 20 ,  0 ), /* 7B */
-			new OpCode( "BIT 7,(IY+$)"      , 20 ,  0 ), /* 7C */
-			new OpCode( "BIT 7,(IY+$)"      , 20 ,  0 ), /* 7D */
+			new OpCode( "BIT 6,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 77 */
+			new OpCode( "BIT 7,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 78 */
+			new OpCode( "BIT 7,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 79 */
+			new OpCode( "BIT 7,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 7A */
+			new OpCode( "BIT 7,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 7B */
+			new OpCode( "BIT 7,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 7C */
+			new OpCode( "BIT 7,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm ), /* 7D */
 			new OpCode( "BIT 7,(IY+$)"      , 20 ,  0 ), /* 7E */
-			new OpCode( "BIT 7,(IY+$)"      , 20 ,  0 ), /* 7F */
+			new OpCode( "BIT 7,(IY+$)"      , 20 ,  0, OpCodeFlags.NoAsm  ), /* 7F */
 			new OpCode( "LD B,RES 0,(IY+$)" , 23 ,  0 ), /* 80 */
 			new OpCode( "LD C,RES 0,(IY+$)" , 23 ,  0 ), /* 81 */
 			new OpCode( "LD D,RES 0,(IY+$)" , 23 ,  0 ), /* 82 */

@@ -7,15 +7,27 @@ using System.Threading.Tasks;
 
 namespace yaza
 {
+    [Flags]
     public enum AddressingMode
     {
-        Invalid,
-        Immediate,
-        Register,
-        RegisterPlusImmediate,
-        DerefImmediate,
-        DerefRegister,
-        DerefRegisterPlusImmediate,
+        Deref = 0x80,
+        SubOp = 0x40,
+
+        Invalid = 0,
+
+        Immediate = 0x01,
+        Register = 0x02,
+        RegisterPlusImmediate = Register | Immediate,
+
+        Mask = 0x07,
+
+
+        /*
+
+        DerefImmediate = Deref | Immediate,
+        DerefRegister = Deref | Register,
+        DerefRegisterPlusImmediate = Deref | RegisterPlusImmediate,
+        */
     }
 
     public abstract class ExprNode
@@ -27,6 +39,7 @@ namespace yaza
         public abstract int Evaluate(AstScope scope);
         public abstract AddressingMode GetAddressingMode(AstScope scope);
         public virtual string GetRegister() { return null; }
+        public virtual string GetSubOp() { throw new InvalidOperationException(); }
         public virtual int GetImmediateValue(AstScope scope) { return Evaluate(scope); }
     }
 
@@ -365,12 +378,8 @@ namespace yaza
         {
             foreach (var n in _nodes)
             {
-                switch (n.GetAddressingMode(scope))
+                if ((n.GetAddressingMode(scope) & AddressingMode.Immediate) != 0)
                 {
-                    case AddressingMode.Immediate:
-                    case AddressingMode.DerefImmediate:
-                    case AddressingMode.DerefRegisterPlusImmediate:
-                    case AddressingMode.RegisterPlusImmediate:
                         return n.GetImmediateValue(scope);
                 }
             }
@@ -478,17 +487,10 @@ namespace yaza
 
         public override AddressingMode GetAddressingMode(AstScope scope)
         {
-            switch (Pointer.GetAddressingMode(scope))
-            {
-                case AddressingMode.DerefImmediate:
-                    return AddressingMode.DerefImmediate;
+            var mode = Pointer.GetAddressingMode(scope);
 
-                case AddressingMode.Register:
-                    return AddressingMode.DerefRegister;
-
-                case AddressingMode.RegisterPlusImmediate:
-                    return AddressingMode.DerefRegisterPlusImmediate;
-            }
+            if ((mode & (AddressingMode.Deref | AddressingMode.SubOp)) == 0)
+                return mode | AddressingMode.Deref;
 
             return AddressingMode.Invalid;
         }
@@ -550,5 +552,50 @@ namespace yaza
         {
             return _generateContext.ip;
         }
+    }
+
+    // Represents a "sub op" operand.  eg: the "RES " part of "LD A,RES 0,(IX+1)"
+    public class ExprNodeSubOp : ExprNode
+    {
+        public ExprNodeSubOp(string subop)
+        {
+            _subop = subop;
+        }
+
+        string _subop;
+
+        public ExprNode RHS;
+
+        public override void Dump(TextWriter w, int indent)
+        {
+            w.WriteLine($"{Utils.Indent(indent)}- sub-op '{_subop}'");
+            RHS.Dump(w, indent + 1);
+        }
+
+        public override int Evaluate(AstScope scope)
+        {
+            throw new CodeException("sub-op operator can't be evaluated at compile time", SourcePosition);
+        }
+
+        public override AddressingMode GetAddressingMode(AstScope scope)
+        {
+            return AddressingMode.SubOp | RHS.GetAddressingMode(scope);
+        }
+
+        public override string GetRegister()
+        {
+            return RHS.GetRegister();
+        }
+
+        public override int GetImmediateValue(AstScope scope)
+        {
+            return RHS.GetImmediateValue(scope);
+        }
+
+        public override string GetSubOp()
+        {
+            return _subop;
+        }
+
     }
 }

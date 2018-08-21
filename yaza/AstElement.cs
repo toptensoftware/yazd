@@ -632,6 +632,16 @@ namespace yaza
             }
         }
 
+        bool IsIndexRegister(string reg)
+        {
+            // Don't insert implicit +0 for (IX) and (IY) when JP instruction
+            if (_mnemonic.ToUpper() == "JP")
+                return false;
+
+            reg = reg.ToUpperInvariant();
+            return reg == "IX" || reg == "IY";
+        }
+
         public override void Layout(AstScope currentScope, LayoutContext ctx)
         {
             var sb = new StringBuilder();
@@ -648,17 +658,37 @@ namespace yaza
                         sb.Append(" ");
 
                     var o = _operands[i];
-                    switch (o.GetAddressingMode(currentScope))
+
+                    var addressingMode = o.GetAddressingMode(currentScope);
+
+                    if ((addressingMode & AddressingMode.SubOp) != 0)
                     {
-                        case AddressingMode.DerefImmediate:
+                        sb.Append(o.GetSubOp());
+                        sb.Append(" ");
+                        addressingMode = addressingMode & ~AddressingMode.SubOp;
+                    }
+
+                    switch (addressingMode)
+                    {
+                        case AddressingMode.Deref | AddressingMode.Immediate:
                             sb.Append($"(?)");
                             break;
 
-                        case AddressingMode.DerefRegister:
-                            sb.Append($"({o.GetRegister()})");
+                        case AddressingMode.Deref | AddressingMode.Register:
+                            {
+                                var reg = o.GetRegister();
+                                if (IsIndexRegister(reg))
+                                {
+                                    sb.Append($"({reg}+?)");
+                                }
+                                else
+                                {
+                                    sb.Append($"({reg})");
+                                }
+                            }
                             break;
 
-                        case AddressingMode.DerefRegisterPlusImmediate:
+                        case AddressingMode.Deref | AddressingMode.RegisterPlusImmediate:
                             sb.Append($"({o.GetRegister()}+?)");
                             break;
 
@@ -703,27 +733,37 @@ namespace yaza
                 for (int i = 0; i < _operands.Count; i++)
                 {
                     var o = _operands[i];
-                    switch (o.GetAddressingMode(currentScope))
-                    {
-                        case AddressingMode.Immediate:
-                        case AddressingMode.DerefImmediate:
-                        case AddressingMode.DerefRegisterPlusImmediate:
-                        case AddressingMode.RegisterPlusImmediate:
-                            // Create the list if not already
-                            if (immediateValues == null)
-                                immediateValues = new List<int>();
 
-                            // Get the immediate value
-                            try
-                            {
-                                immediateValues.Add(o.GetImmediateValue(currentScope));
-                            }
-                            catch (CodeException x)
-                            {
-                                Log.Error(x);
-                                immediateValues.Add(0);
-                            }
-                            break;
+                    var addressingMode = o.GetAddressingMode(currentScope);
+
+                    if ((addressingMode & AddressingMode.Register) != 0 &&
+                        (addressingMode & AddressingMode.Deref) != 0 &&
+                        (addressingMode & AddressingMode.Immediate) == 0 &&
+                        IsIndexRegister(o.GetRegister()))
+                    {
+                        // Create the list if not already
+                        if (immediateValues == null)
+                            immediateValues = new List<int>();
+                        immediateValues.Add(0);
+                        continue;
+                    }
+
+                    if ((addressingMode & AddressingMode.Immediate) != 0)
+                    {
+                        // Create the list if not already
+                        if (immediateValues == null)
+                            immediateValues = new List<int>();
+
+                        // Get the immediate value
+                        try
+                        {
+                            immediateValues.Add(o.GetImmediateValue(currentScope));
+                        }
+                        catch (CodeException x)
+                        {
+                            Log.Error(x);
+                            immediateValues.Add(0);
+                        }
                     }
                 }
 
