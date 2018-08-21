@@ -157,7 +157,7 @@ namespace yaza
                         break;
 
                     case '$':
-                        ctx.EmitSignedByte(sourcePosition, immArgs[arg++]);
+                        ctx.Emit8(sourcePosition, immArgs[arg++]);
                         break;
 
                     case '%':
