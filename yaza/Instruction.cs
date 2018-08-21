@@ -86,7 +86,7 @@ namespace yaza
             InstructionDefinition def;
             if (!_immVariations.TryGetValue(immArgs[0], out def))
             {
-                throw new CodeException($"the immediate value {immArgs[0]} isn't a valid value for this instruction");
+                throw new CodeException($"the immediate value 0x{immArgs[0]:X2} isn't a valid value for this instruction");
             }
 
             // Pass to the undelying definition (after removing the imm variation arg)

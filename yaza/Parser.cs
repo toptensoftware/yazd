@@ -405,7 +405,8 @@ namespace yaza
                 return node;
             }
 
-            throw _tokenizer.Unexpected();
+
+            throw new CodeException($"syntax error in expression: '{Tokenizer.DescribeToken(_tokenizer.Token)}'", _tokenizer.TokenPosition);
         }
 
         ExprNode ParseUnary()

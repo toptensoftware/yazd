@@ -72,7 +72,6 @@ namespace yaza
 
         protected List<AstElement> _elements = new List<AstElement>();
 
-
         public override void Dump(TextWriter w, int indent)
         {
             w.WriteLine($"{Utils.Indent(indent)}- CONTAINER {Name} {SourcePosition.AstDesc()}");
@@ -146,13 +145,9 @@ namespace yaza
             }
 
             if (_isTrue)
-            {
                 TrueBlock.DefineSymbols(currentScope);
-            }
             else if (FalseBlock != null)
-            {
                 FalseBlock.DefineSymbols(currentScope);
-            }
         }
 
         public override void Layout(AstScope currentScope, LayoutContext ctx)
@@ -734,6 +729,10 @@ namespace yaza
 
                 // Generate the instruction
                 _instruction.Generate(ctx, SourcePosition, immediateValues?.ToArray());
+            }
+            catch (CodeException x)
+            {
+                Log.Error(x);
             }
             finally
             {

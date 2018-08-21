@@ -242,6 +242,17 @@ namespace yaza
         {
             return _instructionNames.Contains(name);
         }
+
+        static string[] _subOpNames= new string[]
+        {
+            "RES", "SET", "RL", "RLC", "RR", "RRC", "SLA", "SLL", "SRA", "SRL",
+        };
+        static HashSet<string> _subOpNameMap = new HashSet<string>(_subOpNames, StringComparer.InvariantCultureIgnoreCase);
+        public static bool IsValidSubOpName(string name)
+        {
+            return _subOpNameMap.Contains(name);
+        }
+
         #endregion
 
         #region Register Names
