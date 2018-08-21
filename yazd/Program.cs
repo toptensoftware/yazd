@@ -22,6 +22,7 @@ namespace yazd
 		bool _reloffs = false;
 		bool _htmlMode = false;
 		bool _autoOpen = false;
+        bool _coalescStrings = true;
 		List<int> _entryPoints = new List<int>();
 
 		int _addrSpaceStart;
@@ -153,6 +154,11 @@ namespace yazd
 						_autoOpen = true;
 						break;
 
+                    case "ncs":
+                    case "nocoalescstrings":
+                        _coalescStrings = false;
+                        break;
+
 					default:
 						throw new InvalidOperationException(string.Format("Unknown switch '{0}'", arg));
 				}
@@ -212,8 +218,9 @@ namespace yazd
 			Console.WriteLine("  --html                 Generates a HTML file, with hyperlinked references");
 			Console.WriteLine("  --open                 Automatically opens the generated file with default associated app");
 			Console.WriteLine("  --lowercase|lc         Render in lowercase");
-			Console.WriteLine("  --markwordrefs|mwr     Highlight with a comment literal word values (as they may be addresses)");
-			Console.WriteLine("  --reloffs              Show the offset of relative address mode instructions");
+            Console.WriteLine("  --markwordrefs|mwr     Highlight with a comment literal word values (as they may be addresses)");
+            Console.WriteLine("  --noCoalescStrings|ncs Don't coalesc strings");
+            Console.WriteLine("  --reloffs              Show the offset of relative address mode instructions");
 			Console.WriteLine("  --header:N             Skip N header bytes at start of file");
 			Console.WriteLine("  --help                 Show these help instruction");
 			Console.WriteLine("  --v                    Show version information");
@@ -348,9 +355,14 @@ namespace yazd
 
 					// Get the byte
 					var instruction = new Instruction();
-					if (data >= 0x20 && data <= 0x7f)
-						instruction.Comment = string.Format("'{0}'", (char)data);
-					instruction.addr = (ushort)j;
+					if (data >= 0x20 && data < 0x7f)
+                    {
+                        instruction.Comment = string.Format("'{0}'", (char)data);
+
+                        if ((char)data != '\"')
+                            instruction.AsciiChar = (char)data;
+                    }
+                    instruction.addr = (ushort)j;
 					instruction.Asm = string.Format("DB {0}", Disassembler.FormatByte(data));
 					instruction.next_addr_1 = (ushort)(j + 1);
 					instruction.bytes = 1;
@@ -420,7 +432,63 @@ namespace yazd
 				}
 			}
 
-			TextWriter targetWriter = Console.Out;
+            // Coalesc Ascii strings
+            if (_coalescStrings)
+            {
+                int coalescFrom = 0;
+                for (int i = 0; i < sorted.Count; i++)
+                {
+                    var inst = sorted[i];
+
+                    // Can we continue coalescing? 
+                    if (inst.AsciiChar == 0 || i - coalescFrom > 128 || inst.entryPoint || inst.referencedFrom != null) // || (i > 0 && sorted[i-1].next_addr_1.HasValue))
+                    {
+                        // Any thing to coalesc?
+                        var bytesToCoalesc = i - coalescFrom;
+                        if (bytesToCoalesc > 4)
+                        {
+                            // Get the first instruction
+                            var fromInstruction = sorted[coalescFrom];
+
+                            // Build the DB "string" string
+                            var sb = new StringBuilder();
+                            sb.Append("DB\t\"");
+                            for (int j = 0; j < bytesToCoalesc; j++)
+                            {
+                                sb.Append((char)code[fromInstruction.addr - _baseAddr + _header + j]);
+                            }
+                            sb.Append("\"");
+
+                            // Create the new instruction
+                            var instruction = new Instruction();
+                            instruction.addr = fromInstruction.addr;
+                            instruction.next_addr_1 = inst.addr;
+                            instruction.bytes = (ushort)bytesToCoalesc;
+                            instruction.Asm = sb.ToString();
+                            instruction.referencedFrom = fromInstruction.referencedFrom;
+
+                            // Remove the old instructions
+                            for (int j = 0; j < bytesToCoalesc; j++)
+                            {
+                                instructions.Remove(fromInstruction.addr + j);
+                                sorted.RemoveAt(coalescFrom);
+                            }
+
+                            // Insert the new instruction
+                            instructions.Add(fromInstruction.addr, instruction);
+                            sorted.Insert(coalescFrom, instruction);
+
+                            // Rewind index
+                            i = coalescFrom;
+                        }
+
+                        // Start next coalesc from the next instruction
+                        coalescFrom = i + 1;
+                    }
+                }
+            }
+
+            TextWriter targetWriter = Console.Out;
 			if (_outputFile != null)
 			{
 				targetWriter = new StreamWriter(_outputFile);
@@ -511,13 +579,16 @@ namespace yazd
 				if (_lst)
 				{
 					w.Write("{0:X4}:", i.addr);
-					for (int j = 0; j < i.bytes; j++)
+					for (int j = 0; j < Math.Min((int)i.bytes, 8); j++)
 					{
 						var data = code[i.addr + j - _baseAddr + _header];
 						w.Write(" {0:X2}", data);
 					}
 
-					w.Write(new string(' ', 3 * (6 - i.bytes)));
+                    int spaces = 3 * (6 - i.bytes);
+
+                    if (spaces > 0)
+                        w.Write(new string(' ', spaces));
 					w.Write("\t ");
 				}
 
@@ -529,14 +600,33 @@ namespace yazd
 					label += ":";
 				}
 
-				// Write the disassembled instruction
-				w.Write("{0}\t{1}", label, i.Asm.Replace(" ", "\t"));
+                // Write the disassembled instruction
+                var asm = i.Asm;
+                if (!asm.StartsWith("DB\t\""))
+                    asm = asm.Replace(" ", "\t");
+
+                w.Write("{0}\t{1}", label, asm);
 
 				// Write out an optional comment
 				if (i.Comment != null)
 					w.Write("\t; {0}", i.Comment);
 
-				if (_htmlMode)
+                if (_lst)
+                {
+                    if (i.bytes > 8)
+                    {
+                        for (int j = 8; j < i.bytes; j++)
+                        {
+                            if ((j % 8) == 0)
+                                w.Write("\n{0:X4}:", i.addr + j);
+
+                            var data = code[i.addr + j - _baseAddr + _header];
+                            w.Write(" {0:X2}", data);
+                        }
+                    }
+                }
+
+                if (_htmlMode)
 					w.WriteLine("</a>");
 				else
 					w.WriteLine();

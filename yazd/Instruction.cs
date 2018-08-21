@@ -9,6 +9,7 @@ namespace yazd
 	{
 		public string Asm;
 		public string Comment;
+        public char AsciiChar;
 		public int t_states;
 		public int t_states2;
 		public ushort bytes;
