@@ -1,2 +1,4 @@
 *.lst
 *.bin
+*.ast.txt
+*.sym

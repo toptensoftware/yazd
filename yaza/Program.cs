@@ -67,7 +67,7 @@ namespace yaza
                         ShowLogo();
                         return false;
 
-                    case "instructionList":
+                    case "instructionSet":
                         InstructionSet.DumpAll();
                         return false;
 
@@ -78,18 +78,18 @@ namespace yaza
                         }
                         else
                         {
-                            _astFile = ":stdout";
+                            _astFile = ":default";
                         }
                         break;
 
-                    case "symbols":
+                    case "sym":
                         if (Value != null)
                         {
                             _symbolsFile = Value;
                         }
                         else
                         {
-                            _symbolsFile = ":stdout";
+                            _symbolsFile = ":default";
                         }
                         break;
 
@@ -100,7 +100,7 @@ namespace yaza
                         }
                         else
                         {
-                            _listFile = ":stdout";
+                            _listFile = ":default";
                         }
                         break;
 
@@ -166,9 +166,11 @@ namespace yaza
             Console.WriteLine("Options:");
             Console.WriteLine("  --help                 Show these help instruction");
             Console.WriteLine("  --v                    Show version information");
-            Console.WriteLine("  --instructionList      Display a list of all support instructions");
-            Console.WriteLine("  --ast[:filename]       Dump the AST to filename or stdout");
-            Console.WriteLine("  --symbols[:filename]   Dump symbols to filename or stdout");
+            Console.WriteLine("  --instructionSet       Display a list of all support instructions");
+            Console.WriteLine("  --output:filename      Output file");
+            Console.WriteLine("  --list[:filename]      Generate a list file");
+            Console.WriteLine("  --sym[:filename]       Generate a symbols file");
+            Console.WriteLine("  --ast[:filename]       Dump the AST");
 
             Console.WriteLine();
             Console.WriteLine("Numeric arguments can be in decimal (no prefix) or hex if prefixed with '0x'.");
@@ -182,18 +184,12 @@ namespace yaza
             Console.WriteLine();
         }
 
-        public TextWriter OpenTextWriter(string filename)
+        public TextWriter OpenTextWriter(string filename, string defExt)
         {
-            if (filename == ":stdout")
-                return Console.Out;
+            if (filename == ":default")
+                return new StreamWriter(System.IO.Path.ChangeExtension(_inputFile, defExt));
             else
                 return new StreamWriter(filename);
-        }
-
-        public void CloseTextWriter(TextWriter w)
-        {
-            if (w != Console.Out && w != null)
-                w.Dispose();
         }
 
         public int Run(string[] args)
@@ -224,9 +220,10 @@ namespace yaza
 
             if (_astFile != null)
             {
-                var w = OpenTextWriter(_astFile);
-                root.Dump(w, 0);
-                CloseTextWriter(w);
+                using (var w = OpenTextWriter(_astFile, ".ast.txt"))
+                {
+                    root.Dump(w, 0);
+                }
             }
 
             // Step 3 - Map instructions
@@ -242,13 +239,17 @@ namespace yaza
                 exprNodeIP.SetContext(generateContext);
 
                 if (_listFile != null)
-                    generateContext.ListFile = OpenTextWriter(_listFile);
+                    generateContext.ListFile = OpenTextWriter(_listFile, "lst");
 
                 generateContext.EnterSourceFile(file.SourcePosition);
                 root.Generate(null, generateContext);
                 generateContext.LeaveSourceFile();
 
-                CloseTextWriter(generateContext.ListFile);
+                if (_listFile != null)
+                {
+                    generateContext.ListFile.Dispose();
+                    generateContext.ListFile = null;
+                }
 
                 if (Log.ErrorCount == 0)
                 {
@@ -262,9 +263,8 @@ namespace yaza
             // Write symbols file
             if (_symbolsFile != null && Log.ErrorCount == 0)
             {
-                var w = OpenTextWriter(_symbolsFile);
-                root.DumpSymbols(w);
-                CloseTextWriter(w);
+                using (var w = OpenTextWriter(_symbolsFile, "sym"))
+                    root.DumpSymbols(w);
             }
 
             Log.DumpSummary();
