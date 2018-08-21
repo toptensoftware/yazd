@@ -33,10 +33,10 @@ namespace yaza
                 container.SourcePosition = _tokenizer.Source.CreatePosition(0);
 
                 // Parse all elements
-                while (_tokenizer.Token != Token.EOF)
-                {
-                    ParseIntoContainer(container);
-                }
+                ParseIntoContainer(container);
+
+                // Should be at EOF?
+                _tokenizer.CheckToken(Token.EOF);
 
                 // Return the container
                 return container;
@@ -65,37 +65,52 @@ namespace yaza
 
         private void ParseIntoContainer(AstContainer container)
         {
-            try
+            while (_tokenizer.Token != Token.EOF)
             {
-                var pos = _tokenizer.TokenPosition;
-
-                // Parse an element
-                var elem = ParseAstElement();
-
-                // Anything returned?
-                if (elem != null)
+                try
                 {
-                    elem.SourcePosition = pos;
-                    container.AddElement(elem);
+                    var pos = _tokenizer.TokenPosition;
+
+                    // Check for container terminators
+                    if (_tokenizer.Token == Token.Identifier)
+                    {
+                        switch (_tokenizer.TokenString.ToUpperInvariant())
+                        {
+                            case "ENDIF":
+                            case "ELSE":
+                            case "ELSEIF":
+                                return;
+                        }
+                    }
+
+                    // Parse an element
+                    var elem = ParseAstElement();
+
+                    // Anything returned?
+                    if (elem != null)
+                    {
+                        elem.SourcePosition = pos;
+                        container.AddElement(elem);
+                    }
+
+                    // Unless it's a label, we should hit EOL after each element
+                    if (!(elem is AstLabel))
+                    {
+                        _tokenizer.SkipToken(Token.EOL);
+                    }
                 }
-
-                // Unless it's a label, we should hit EOL after each element
-                if (!(elem is AstLabel))
+                catch (CodeException x)
                 {
-                    _tokenizer.SkipToken(Token.EOL);
+                    // Log error
+                    Log.Error(x.Position, x.Message);
+
+                    // Skip to next line
+                    while (_tokenizer.Token != Token.EOF && _tokenizer.Token != Token.EOL)
+                    {
+                        _tokenizer.Next();
+                    }
                 }
             }
-            catch (CodeException x)
-            {
-                // Log error
-                Log.Error(x.Position, x.Message);
-
-                // Skip to next line
-                while (_tokenizer.Token != Token.EOF && _tokenizer.Token != Token.EOL)
-                {
-                    _tokenizer.Next();
-                }
-           }
         }
 
         AstElement ParseAstElement()
@@ -112,6 +127,20 @@ namespace yaza
             if (_tokenizer.TrySkipIdentifier("ORG"))
             {
                 return new AstOrgElement(ParseExpression());
+            }
+
+            // SEEK Element
+            if (_tokenizer.TrySkipIdentifier("SEEK"))
+            {
+                return new AstSeekElement(ParseExpression());
+            }
+
+            // END Element
+            if (_tokenizer.TrySkipIdentifier("END"))
+            {
+                while (_tokenizer.Token != Token.EOF)
+                    _tokenizer.Next();
+                return null;
             }
 
             // Include?
@@ -171,7 +200,7 @@ namespace yaza
             }
 
             // DB?
-            if (_tokenizer.TrySkipIdentifier("DB"))
+            if (_tokenizer.TrySkipIdentifier("DB") || _tokenizer.TrySkipIdentifier("DEFB"))
             {
                 var elem = new AstDbElement();
                 ParseDxExpressions(elem);
@@ -179,11 +208,28 @@ namespace yaza
             }
 
             // DW?
-            if (_tokenizer.TrySkipIdentifier("DW"))
+            if (_tokenizer.TrySkipIdentifier("DW") || _tokenizer.TrySkipIdentifier("DEFW") || _tokenizer.TrySkipIdentifier("DM") || _tokenizer.TrySkipIdentifier("DEFM"))
             {
                 var elem = new AstDwElement();
                 ParseDxExpressions(elem);
                 return elem;
+            }
+
+            // DS?
+            if (_tokenizer.TrySkipIdentifier("DS") || _tokenizer.TrySkipIdentifier("DEFS"))
+            {
+                var elem = new AstDsElement(ParseExpression());
+                if (_tokenizer.TrySkipToken(Token.Comma))
+                {
+                    elem.ValueExpression = ParseExpression();
+                }
+                return elem;
+            }
+
+            // IF Block
+            if (_tokenizer.TrySkipIdentifier("IF"))
+            {
+                return ParseConditional();
             }
 
             if (_tokenizer.Token == Token.Identifier)
@@ -223,6 +269,37 @@ namespace yaza
 
             // What?
             throw _tokenizer.Unexpected();
+        }
+
+        AstElement ParseConditional()
+        {
+            var ifBlock = new AstConditional();
+            try
+            {
+                ifBlock.Condition = ParseExpression();
+            }
+            catch (CodeException x)
+            {
+                Log.Error(x);
+                while (_tokenizer.Token != Token.EOF && _tokenizer.Token != Token.EOL)
+                    _tokenizer.Next();
+            }
+            ifBlock.TrueBlock = new AstContainer("true block");
+            ParseIntoContainer((AstContainer)ifBlock.TrueBlock);
+
+            if (_tokenizer.TrySkipIdentifier("ELSE"))
+            {
+                ifBlock.FalseBlock = new AstContainer("false block");
+                ParseIntoContainer((AstContainer)ifBlock.FalseBlock);
+            }
+            else if (_tokenizer.TrySkipIdentifier("ELSEIF"))
+            {
+                ifBlock.FalseBlock = ParseConditional();
+                return ifBlock;
+            }   
+
+            _tokenizer.SkipIdentifier("ENDIF");
+            return ifBlock;
         }
 
         string ParseIncludePath()

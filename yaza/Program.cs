@@ -252,7 +252,7 @@ namespace yaza
 
                 if (Log.ErrorCount == 0)
                 {
-                    var code = generateContext.GetGeneratedBytes(layoutContext.minAddress.Value, layoutContext.maxAddress.Value);
+                    var code = generateContext.GetGeneratedBytes();
                     var outputFile = _outputFile == null ? System.IO.Path.ChangeExtension(_inputFile, ".bin") : _outputFile;
                     System.IO.File.WriteAllBytes(outputFile, code);
                 }

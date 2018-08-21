@@ -108,6 +108,70 @@ namespace yaza
 
     }
 
+    public class AstConditional : AstElement
+    {
+        public AstConditional()
+        {
+        }
+
+        public ExprNode Condition;
+        public AstElement TrueBlock;
+        public AstElement FalseBlock;
+        bool _isTrue;
+
+        public override void Dump(TextWriter w, int indent)
+        {
+            w.WriteLine($"{Utils.Indent(indent)}- CONDITIONAL {SourcePosition.AstDesc()}");
+            Condition.Dump(w, indent + 1);
+
+            w.WriteLine($"{Utils.Indent(indent + 1)}- TRUE BLOCK");
+            TrueBlock.Dump(w, indent + 2);
+
+            if (FalseBlock != null)
+            {
+                w.WriteLine($"{Utils.Indent(indent + 1)}- FALSE BLOCK");
+                FalseBlock.Dump(w, indent + 2);
+            }
+        }
+
+        public override void DefineSymbols(AstScope currentScope)
+        {
+            try
+            {
+                _isTrue = Condition.Evaluate(currentScope) != 0;
+            }
+            catch (CodeException x)
+            {
+                Log.Error(x);
+            }
+
+            if (_isTrue)
+            {
+                TrueBlock.DefineSymbols(currentScope);
+            }
+            else if (FalseBlock != null)
+            {
+                FalseBlock.DefineSymbols(currentScope);
+            }
+        }
+
+        public override void Layout(AstScope currentScope, LayoutContext ctx)
+        {
+            if (_isTrue)
+                TrueBlock.Layout(currentScope, ctx);
+            else if (FalseBlock != null)
+                FalseBlock.Layout(currentScope, ctx);
+        }
+
+        public override void Generate(AstScope currentScope, GenerateContext ctx)
+        {
+            if (_isTrue)
+                TrueBlock.Generate(currentScope, ctx);
+            else if (FalseBlock != null)
+                FalseBlock.Generate(currentScope, ctx);
+        }
+    }
+
 
     // Like a container but contains symbol definitions
     public class AstScope : AstContainer
@@ -232,6 +296,41 @@ namespace yaza
         }
     }
 
+    // "SEEK" directive
+    public class AstSeekElement : AstElement
+    {
+        public AstSeekElement(ExprNode expr)
+        {
+            _expr = expr;
+        }
+
+        ExprNode _expr;
+
+        public override void Dump(TextWriter w, int indent)
+        {
+            w.WriteLine($"{Utils.Indent(indent)}- SEEK {SourcePosition.AstDesc()}");
+            _expr.Dump(w, indent + 1);
+        }
+
+        public override void Layout(AstScope currentScope, LayoutContext ctx)
+        {
+        }
+
+        public override void Generate(AstScope currentScope, GenerateContext ctx)
+        {
+            ctx.ListTo(SourcePosition);
+
+            try
+            {
+                ctx.Seek(_expr.Evaluate(currentScope));
+            }
+            catch (CodeException x)
+            {
+                Log.Error(x);
+            }
+        }
+    }
+
     // "DB" or "DW" directive
     public abstract class AstDxElement : AstElement
     {
@@ -304,6 +403,73 @@ namespace yaza
             {
                 ctx.Emit16(e.SourcePosition, e.Evaluate(currentScope));
             }
+        }
+    }
+
+    // "DS" directive
+    public class AstDsElement : AstElement
+    {
+        public AstDsElement(ExprNode bytesExpr)
+        {
+            _bytesExpression = bytesExpr;
+        }
+
+        ExprNode _bytesExpression;
+        int _bytes;
+
+        public ExprNode ValueExpression;
+
+        public override void Dump(TextWriter w, int indent)
+        {
+            w.WriteLine($"{Utils.Indent(indent)}- DW {SourcePosition.AstDesc()}");
+            _bytesExpression.Dump(w, indent + 1);
+        }
+
+        public override void Layout(AstScope currentScope, LayoutContext ctx)
+        {
+            try
+            {
+                ctx.ReserveBytes(_bytes = _bytesExpression.Evaluate(currentScope));
+            }
+            catch (CodeException x)
+            {
+                Log.Error(x);
+            }
+        }
+
+        public override void Generate(AstScope currentScope, GenerateContext ctx)
+        {
+            ctx.ListTo(SourcePosition);
+
+            if (ctx.ListFile != null)
+            {
+                ctx.ListTo(SourcePosition);
+                ctx.WriteListingText($"{ctx.ip:X4}: [{_bytes} bytes]");
+                ctx.ListToInclusive(SourcePosition);
+            }
+
+            var bytes = new byte[_bytes];
+
+            if (ValueExpression != null)
+            {
+                var value = ValueExpression.Evaluate(currentScope);
+
+                // Check range (yes, sbyte and byte)
+                if (value < sbyte.MinValue || value > byte.MaxValue)
+                {
+                    Log.Error(SourcePosition, $"value out of range: {value} (0x{value:X}) doesn't fit in 8-bits");
+                }
+                else
+                {
+                    var val = (byte)(value & 0xFF);
+                    for (int i = 0; i < bytes.Length; i++)
+                    {
+                        bytes[i] = val;
+                    }
+                }
+            }
+
+            ctx.EmitBytes(bytes, false);
         }
     }
 

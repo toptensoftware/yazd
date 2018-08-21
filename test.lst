@@ -12,15 +12,28 @@
                                   ---------------------------------
 
                                   
+                                  if 10 > 30
+                                  
+                                  	jp blah
+                                  
+                                  elseif 0
+                                  
+                                  	jp blah2
+                                  
+                                  endif
+                                  
+                                  
                                   label:
 0403: 17 18                       	db 23,24
 0405: 48 65 6C 6C 6F 20 77 6F 72  	db "Hello world"
 040E: 6C 64 
                                   
-0410: 10 FE                       	djnz	$
+0410: [10 bytes]                  	ds 10,7
                                   
-0412: 3E 00                       	ld a, 0
-0414: 28 ED                       	jr z,label
+041A: 10 FE                       	djnz	$
                                   
-0416: [132 bytes]                 	incbin "test.asm"
-049A:
+041C: 3E 00                       	ld a, 0
+041E: 28 E3                       	jr z,label
+                                  
+0420: [179 bytes]                 	incbin "test.asm"
+04D3:

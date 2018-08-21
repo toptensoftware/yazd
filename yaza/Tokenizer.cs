@@ -98,6 +98,18 @@ namespace yaza
             return false;
         }
 
+        public void SkipIdentifier(string str)
+        {
+            if (IsIdentifier(str))
+            {
+                Next();
+                return;
+            }
+
+            throw new CodeException($"syntax error: expected '{str}', found '{TokenRaw}'", TokenPosition);
+        }
+
+
         public bool TrySkipToken(Token token)
         {
             if (_token == token)
