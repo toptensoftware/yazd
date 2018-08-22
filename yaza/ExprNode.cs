@@ -376,13 +376,19 @@ namespace yaza
 
         public override int GetImmediateValue(AstScope scope)
         {
+            int val = 0;
+            bool any = false;
             foreach (var n in _nodes)
             {
                 if ((n.GetAddressingMode(scope) & AddressingMode.Immediate) != 0)
                 {
-                        return n.GetImmediateValue(scope);
+                    val += n.GetImmediateValue(scope);
+                    any = true;
                 }
             }
+
+            if (any)
+                return val; 
 
             throw new NotImplementedException("Internal error");
         }
