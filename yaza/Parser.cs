@@ -79,6 +79,7 @@ namespace yaza
                             case "ENDIF":
                             case "ELSE":
                             case "ELSEIF":
+                            case "ENDP":
                                 return;
                         }
                     }
@@ -238,6 +239,19 @@ namespace yaza
             if (_tokenizer.TrySkipIdentifier("IF"))
             {
                 return ParseConditional();
+            }
+
+            // PROC?
+            if (_tokenizer.TrySkipIdentifier("PROC"))
+            {
+                _tokenizer.SkipToken(Token.EOL);
+
+                var proc = new AstProc();
+                ParseIntoContainer(proc);
+
+                _tokenizer.SkipIdentifier("ENDP");
+
+                return proc;
             }
 
             if (_tokenizer.Token == Token.Identifier)
@@ -842,6 +856,8 @@ namespace yaza
                 case "ENDIF":
                 case "ELSE":
                 case "ELSEIF":
+                case "PROC":
+                case "ENDP":
                     return true;
             }
 

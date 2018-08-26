@@ -30,6 +30,7 @@ namespace yaza
                     var scope = temp as AstScope;
                     if (scope != null)
                         return scope;
+                    temp = temp.Container;
                 }
                 return null;
             }
@@ -750,6 +751,13 @@ namespace yaza
             {
                 ctx.LeaveInstruction();
             }
+        }
+    }
+
+    public class AstProc : AstScope
+    {
+        public AstProc() : base("PROC")
+        {
         }
     }
 }
