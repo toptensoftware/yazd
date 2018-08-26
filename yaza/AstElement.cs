@@ -924,4 +924,166 @@ namespace yaza
             }
         }
     }
+
+    class AstDefBits : AstElement, ISymbolValue
+    {
+        public AstDefBits(string character, string bitPattern)
+        {
+            _character = character;
+            _bitPattern = bitPattern;
+        }
+
+        string _character;
+        string _bitPattern;
+
+        public string BitPattern => _bitPattern;
+
+        public override void Dump(TextWriter w, int indent)
+        {
+            w.WriteLine($"{Utils.Indent(indent)}- DEFBITS '{_character}' = '{_bitPattern}' {SourcePosition.AstDesc()}");
+        }
+
+        public override void DefineSymbols(AstScope currentScope)
+        {
+            if (_character.Length != 1)
+            {
+                throw new CodeException("Bit pattern names must be a single character", SourcePosition);
+            }
+
+            for (int i = 0; i < _bitPattern.Length; i++)
+            {
+                if (_bitPattern[i] != '0' && _bitPattern[i] != '1')
+                {
+                    throw new CodeException("Bit patterns must only contain '1' and '0' characters", SourcePosition);
+                }
+            }
+
+            currentScope.Define($"bitpattern'{_character}'", this);
+        }
+    }
+
+    class AstBitmap : AstElement
+    {
+        public AstBitmap(ExprNode width, ExprNode height, bool msbFirst)
+        {
+            _width = width;
+            _height = height;
+            _msbFirst = msbFirst;
+        }
+
+        ExprNode _width;
+        ExprNode _height;
+        bool _msbFirst;
+        protected List<string> _strings = new List<string>();
+
+        public void AddString(string str)
+        {
+            _strings.Add(str);
+        }
+
+        public SourcePosition EndPosition;
+
+        public override void Dump(TextWriter w, int indent)
+        {
+            w.WriteLine($"{Utils.Indent(indent)}- BITMAP {SourcePosition.AstDesc()}");
+            _width.Dump(w, indent + 1);
+            _height.Dump(w, indent + 1);
+            foreach (var v in _strings)
+            {
+                w.WriteLine($"{Utils.Indent(indent+1)} '{v}'");
+            }
+        }
+
+        byte[] _bytes;
+
+        public override void Layout(AstScope currentScope, LayoutContext ctx)
+        {
+            if (_strings.Count == 0)
+                return;
+
+            // Work out width and height
+            int blockWidth = _width.Evaluate(currentScope);
+            int blockHeight = _height.Evaluate(currentScope);
+            if (blockWidth < 1)
+                throw new CodeException("Invalid bitmap block width", SourcePosition);
+            if (blockHeight < 1)
+                throw new CodeException("Invalid bitmap block height", SourcePosition);
+
+            // Build the bitmap
+            List<string> bits = new List<string>();
+            for (int i = 0; i < _strings.Count; i++)
+            {
+                var row = new StringBuilder();
+
+                foreach (var ch in _strings[i])
+                {
+                    // Find the bit definition
+                    var bitdef = currentScope.FindSymbol($"bitpattern'{ch}'") as AstDefBits;
+                    if (bitdef == null)
+                        throw new CodeException("No bit definition for character '{ch}'", SourcePosition);
+
+                    row.Append(bitdef.BitPattern);
+                }
+
+                bits.Add(row.ToString());
+            }
+
+            if (bits.Select(x => x.Length).Distinct().Count() != 1)
+                throw new CodeException("All rows in a bitmap must the same length", SourcePosition);
+
+            if ((bits[0].Length % blockWidth) != 0)
+                throw new CodeException("Bitmap width must be a multiple of the block width", SourcePosition);
+
+            if ((bits.Count % blockHeight) != 0)
+                throw new CodeException("Bitmap height must be a multiple of the block height", SourcePosition);
+
+            if (((blockWidth * bits.Count) % 8) != 0)
+                throw new CodeException("Bitmap block width multiplied by bitmap height must be a multiple of 8", SourcePosition);
+
+            int blocksAcross = bits[0].Length / blockWidth;
+            int blocksDown = bits.Count / blockHeight;
+
+            int bitCounter = 0;
+            byte assembledByte = 0;
+            var bytes = new List<byte>();
+            for (int blockY = 0; blockY < blocksDown; blockY++)
+            {
+                for (int blockX = 0; blockX < blocksAcross; blockX++)
+                {
+                    for (int bitY = 0; bitY < blockHeight; bitY++)
+                    {
+                        for (int bitX = 0; bitX < blockWidth; bitX++)
+                        {
+                            var bit = bits[blockY * blockHeight + bitY][blockX * blockWidth + bitX];
+                            if (_msbFirst)
+                                assembledByte = (byte)(assembledByte << 1 | (bit == '1' ? 1 : 0));
+                            else
+                                assembledByte = (byte)(assembledByte >> 1 | (bit == '1' ? 0x80 : 0));
+
+                            bitCounter++;
+                            if (bitCounter == 8)
+                            {
+                                bitCounter = 0;
+                                bytes.Add(assembledByte);
+                            }
+                        }
+                    }
+                }
+            }
+
+            _bytes = bytes.ToArray();
+        }
+
+        public override void Generate(AstScope currentScope, GenerateContext ctx)
+        {
+            // List out the bitmap definition
+            ctx.ListToInclusive(EndPosition);
+
+            if (_bytes == null)
+                return;
+
+            // Now list the bytes
+            ctx.EmitBytes(_bytes, true);
+        }
+    }
 }

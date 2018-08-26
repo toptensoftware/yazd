@@ -67,7 +67,7 @@ namespace yaza
                 }
                 else
                 {
-                    ListFile.WriteLine($"{ip:X4}:");
+                    ListFile.WriteLine($"\n{ip:X4}:");
                 }
             }
         }
@@ -90,6 +90,22 @@ namespace yaza
         public void ListToInclusive(SourcePosition pos)
         {
             ListTo(pos.Source.CreateLinePosition(pos.LineNumber + 1));
+        }
+
+        void DumpUnlistedBytes()
+        {
+            for (int b = 0; b < _unlistedBytes.Count; b++)
+            {
+                if (b % 8 == 0)
+                {
+                    if (b > 0)
+                        ListFile.WriteLine();
+                    ListFile.Write($"{_unlistedBytesAddress + b:X4}: ");
+                }
+                ListFile.Write($"{_unlistedBytes[b]:X2} ");
+            }
+            ListFile.WriteLine();
+            _unlistedBytes.Clear();
         }
 
         public void ListTo(SourcePosition pos)
@@ -123,18 +139,14 @@ namespace yaza
 
                 if (i == fromLine && _unlistedBytes.Count > 0)
                 {
-                    for (int b = 0; b < _unlistedBytes.Count; b++)
-                    {
-                        if (b % 8 == 0)
-                        {
-                            if (b > 0)
-                                ListFile.WriteLine();
-                            ListFile.Write($"{_unlistedBytesAddress + b:X4}: ");
-                        }
-                        ListFile.Write($"{_unlistedBytes[b]:X2} ");
-                    }
-                    ListFile.WriteLine();
+                    DumpUnlistedBytes();
                 }
+            }
+
+            if (_unlistedBytes.Count > 0)
+            {
+                ListFile.WriteLine();
+                DumpUnlistedBytes();
             }
 
             _listColumnPos = 0;

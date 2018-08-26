@@ -255,6 +255,66 @@ namespace yaza
                 return proc;
             }
 
+            // DEFBITS?
+            if (_tokenizer.TrySkipIdentifier("DEFBITS"))
+            {
+                // Get the character
+                _tokenizer.CheckToken(Token.String);
+                var character = _tokenizer.TokenString;
+                _tokenizer.Next();
+
+                // Skip the comma
+                _tokenizer.SkipToken(Token.Comma);
+
+                // Get the bit pattern
+                _tokenizer.CheckToken(Token.String);
+                var bitPattern = _tokenizer.TokenString;
+                _tokenizer.Next();
+
+                return new AstDefBits(character, bitPattern);
+            }
+
+            // BITMAP
+            if (_tokenizer.TrySkipIdentifier("BITMAP"))
+            {
+                // Parse width and height
+                var width = ParseExpression();
+                _tokenizer.SkipToken(Token.Comma);
+                var height = ParseExpression();
+
+                // Bit order spec?
+                bool msbFirst = true;
+                if (_tokenizer.TrySkipToken(Token.Comma))
+                {
+                    if (_tokenizer.TrySkipIdentifier("msb"))
+                        msbFirst = true;
+                    else if (_tokenizer.TrySkipIdentifier("lsb"))
+                        msbFirst = false;
+                    else
+                        throw new CodeException("Expected 'MSB' or 'LSB'", _tokenizer.TokenPosition);
+                }
+
+                // Create bitmap ast element
+                var bitmap = new AstBitmap(width, height,msbFirst);
+
+                // Move to next line
+                _tokenizer.SkipToken(Token.EOL);
+
+                // Consume all strings, one per line
+                while (_tokenizer.Token == Token.String)
+                {
+                    bitmap.AddString(_tokenizer.TokenString);
+                    _tokenizer.Next();
+                    _tokenizer.SkipToken(Token.EOL);
+                    continue;
+                }
+
+                // Skip the end dilimeter
+                bitmap.EndPosition = _tokenizer.TokenPosition;
+                _tokenizer.SkipIdentifier("ENDB");
+                return bitmap;
+            }
+
             if (_tokenizer.Token == Token.Identifier)
             {
                 // Remember the name
@@ -1004,6 +1064,8 @@ namespace yaza
                 case "ENDP":
                 case "MACRO":
                 case "ENDM":
+                case "DEFBITS":
+                case "BITMAP":
                     return true;
             }
 
