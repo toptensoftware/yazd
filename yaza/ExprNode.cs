@@ -30,7 +30,12 @@ namespace yaza
         */
     }
 
-    public abstract class ExprNode
+    public interface ISymbolValue
+    {
+        void Dump(TextWriter w, int indent);
+    }
+
+    public abstract class ExprNode : ISymbolValue
     {
         // Source position of this expression (only really usd on root expression elements)
         public SourcePosition SourcePosition;
@@ -38,10 +43,134 @@ namespace yaza
         public abstract void Dump(TextWriter w, int indent);
         public abstract int Evaluate(AstScope scope);
         public abstract AddressingMode GetAddressingMode(AstScope scope);
-        public virtual string GetRegister() { return null; }
+        public virtual string GetRegister(AstScope scope) { return null; }
         public virtual string GetSubOp() { throw new InvalidOperationException(); }
         public virtual int GetImmediateValue(AstScope scope) { return Evaluate(scope); }
     }
+
+    public class ExprNodeParameterized : ExprNode
+    {
+        public ExprNodeParameterized(string[] parameterNames, ExprNode body)
+        {
+            _parameterNames = parameterNames;
+            _body = body;
+        }
+
+        public static string MakeSuffix(int parameterCount)
+        {
+            return $"/{parameterCount}";
+        }
+
+        string[] _parameterNames;
+        ExprNode _body;
+
+        public ExprNode Resolve(ExprNode[] arguments)
+        {
+            return new ExprNodeParameterizedInstance(_parameterNames, arguments, _body);
+        }
+
+        public override void Dump(TextWriter w, int indent)
+        {
+            w.WriteLine($"{Utils.Indent(indent)}- parameterized({string.Join(",", _parameterNames)})");
+            _body.Dump(w, indent + 1);
+        }
+
+        public override int Evaluate(AstScope scope)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override AddressingMode GetAddressingMode(AstScope scope)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override int GetImmediateValue(AstScope scope)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override string GetRegister(AstScope scope)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    public class ExprNodeParameterizedInstance : ExprNode
+    {
+        public ExprNodeParameterizedInstance(string[] parameterNames, ExprNode[] arguments, ExprNode body)
+        {
+            _scope = new AstScope("parameterized equate");
+            for (int i = 0; i < parameterNames.Length; i++)
+            {
+                _scope.Define(parameterNames[i], arguments[i]);
+            }
+            _body = body;
+        }
+
+        AstScope _scope;
+        ExprNode _body;
+
+        public override void Dump(TextWriter w, int indent)
+        {
+            w.WriteLine($"{Utils.Indent(indent)}- parameterized [resolved]");
+            _body.Dump(w, indent + 1);
+        }
+
+        public override int Evaluate(AstScope scope)
+        {
+            try
+            {
+                _scope.Container= scope;
+                return _body.Evaluate(_scope);
+            }
+            finally
+            {
+                _scope.Container = null;
+            }
+        }
+
+        public override AddressingMode GetAddressingMode(AstScope scope)
+        {
+            try
+            {
+                _scope.Container = scope;
+                return _body.GetAddressingMode(_scope);
+            }
+            finally
+            {
+                _scope.Container = null;
+            }
+        }
+
+        public override int GetImmediateValue(AstScope scope)
+        {
+            try
+            {
+                _scope.Container = scope;
+                return _body.GetImmediateValue(_scope);
+            }
+            finally
+            {
+                _scope.Container = null;
+            }
+        }
+
+        public override string GetRegister(AstScope scope)
+        {
+            try
+            {
+                _scope.Container = scope;
+                return _body.GetRegister(_scope);
+            }
+            finally
+            {
+                _scope.Container = null;
+            }
+        }
+    }
+
+
 
     public class ExprNodeLiteral : ExprNode
     {
@@ -187,12 +316,17 @@ namespace yaza
 
         public static int OpDiv(int a, int b)
         {
-            return a * b;
+            return a / b;
         }
 
         public static int OpMod(int a, int b)
         {
-            return a * b;
+            return a % b;
+        }
+
+        public static int OpAdd(int a, int b)
+        {
+            return a + b;
         }
 
         public static int OpLogicalAnd(int a, int b)
@@ -261,6 +395,58 @@ namespace yaza
         }
     }
 
+    public class ExprNodeAdd : ExprNodeBinary
+    {
+        public ExprNodeAdd()
+        {
+            OpName = "+";
+            Operator = ExprNodeBinary.OpAdd;
+        }
+
+        public override AddressingMode GetAddressingMode(AstScope scope)
+        {
+            var lhsMode = LHS.GetAddressingMode(scope);
+            var rhsMode = RHS.GetAddressingMode(scope);
+
+            if (lhsMode == AddressingMode.Immediate && rhsMode == AddressingMode.Immediate)
+                return AddressingMode.Immediate;
+
+            if (lhsMode == AddressingMode.Immediate && rhsMode == AddressingMode.Register)
+                return AddressingMode.RegisterPlusImmediate;
+
+            if (lhsMode == AddressingMode.Register && rhsMode == AddressingMode.Immediate)
+                return AddressingMode.RegisterPlusImmediate;
+
+            if (lhsMode == AddressingMode.Immediate && rhsMode == AddressingMode.RegisterPlusImmediate)
+                return AddressingMode.RegisterPlusImmediate;
+
+            if (lhsMode == AddressingMode.RegisterPlusImmediate && rhsMode == AddressingMode.Immediate)
+                return AddressingMode.RegisterPlusImmediate;
+
+            return AddressingMode.Invalid;
+        }
+
+        public override int GetImmediateValue(AstScope scope)
+        {
+            var lhsMode = LHS.GetAddressingMode(scope);
+            var rhsMode = RHS.GetAddressingMode(scope);
+
+            int val = 0;
+            if ((lhsMode & AddressingMode.Immediate) != 0)
+                val += LHS.GetImmediateValue(scope);
+            if ((rhsMode & AddressingMode.Immediate) != 0)
+                val += RHS.GetImmediateValue(scope);
+
+            return val;
+        }
+
+        public override string GetRegister(AstScope scope)
+        {
+            return LHS.GetRegister(scope) ?? RHS.GetRegister(scope);
+        }
+    }
+
+
     public class ExprNodeTernery : ExprNode
     {
         public ExprNodeTernery()
@@ -304,108 +490,6 @@ namespace yaza
 
     }
 
-    public class ExprNodeAddLTR : ExprNode
-    {
-        public ExprNodeAddLTR()
-        {
-        }
-
-        public void AddNode(ExprNode node)
-        {
-            _nodes.Add(node);
-        }
-
-        List<ExprNode> _nodes = new List<ExprNode>();
-
-
-        public override void Dump(TextWriter w, int indent)
-        {
-            w.WriteLine($"{Utils.Indent(indent)}- add ltr");
-            foreach (var n in _nodes)
-            {
-                n.Dump(w, indent + 1);
-            }
-        }
-
-        public override int Evaluate(AstScope scope)
-        {
-            int val = 0;
-            foreach (var n in _nodes)
-            {
-                val += n.Evaluate(scope);
-            }
-            return val;
-        }
-
-        public override AddressingMode GetAddressingMode(AstScope scope)
-        {
-            int registers = 0;
-            int immediates = 0;
-            foreach (var n in _nodes)
-            {
-                switch (n.GetAddressingMode(scope))
-                {
-                    case AddressingMode.Immediate:
-                        immediates++;
-                        break;
-
-                    case AddressingMode.Register:
-                        registers++;
-                        break;
-
-                    default:
-                        return AddressingMode.Invalid;
-                }
-            }
-
-            if (registers == 0)
-            {
-                if (immediates > 0)
-                    return AddressingMode.Immediate;
-                else
-                    return AddressingMode.Invalid;
-            }
-            else
-            {
-                if (immediates > 0)
-                    return AddressingMode.RegisterPlusImmediate;
-                else
-                    return AddressingMode.Register;
-            }
-        }
-
-        public override int GetImmediateValue(AstScope scope)
-        {
-            int val = 0;
-            bool any = false;
-            foreach (var n in _nodes)
-            {
-                if ((n.GetAddressingMode(scope) & AddressingMode.Immediate) != 0)
-                {
-                    val += n.GetImmediateValue(scope);
-                    any = true;
-                }
-            }
-
-            if (any)
-                return val; 
-
-            throw new NotImplementedException("Internal error");
-        }
-
-        public override string GetRegister()
-        {
-            foreach (var n in _nodes)
-            {
-                var r = n.GetRegister();
-                if (r != null)
-                    return r;
-            }
-            return null;
-        }
-    }
-
-
     public class ExprNodeIdentifier : ExprNode
     {
         public ExprNodeIdentifier(SourcePosition position, string name)
@@ -416,27 +500,65 @@ namespace yaza
 
         string _name;
 
+        public ExprNode[] Arguments;
+
         public override void Dump(TextWriter w, int indent)
         {
             w.WriteLine($"{Utils.Indent(indent)}- identifier '{_name}'");
+            if (Arguments != null)
+            {
+                w.WriteLine($"{Utils.Indent(indent+1)}- args");
+                foreach (var a in Arguments)
+                {
+                    a.Dump(w, indent + 2);
+                }
+            }
+        }
+
+        ExprNode FindSymbol(AstScope scope)
+        {
+            if (Arguments == null)
+            {
+                // Simple symbol
+                var symbol = scope.FindSymbol(_name) as ExprNode;
+                if (symbol == null)
+                {
+                    throw new CodeException($"Unrecognized symbol: '{_name}'", SourcePosition);
+                }
+                return symbol;
+            }
+            else
+            {
+                // Parameterized symbol
+                var symbol = scope.FindSymbol(_name + ExprNodeParameterized.MakeSuffix(Arguments.Length)) as ExprNodeParameterized;
+                if (symbol == null)
+                {
+                    throw new CodeException($"Unrecognized symbol: '{_name}' (with {Arguments.Length} arguments)", SourcePosition);
+                }
+
+                // Resolve it
+                return symbol.Resolve(Arguments);
+            }
         }
 
         public override int Evaluate(AstScope scope)
         {
-            var symbolDefinition = scope.FindSymbol(_name);
-            if (symbolDefinition != null)
-                return symbolDefinition.Evaluate(scope);
-
-            throw new CodeException($"unknown symbol: '{_name}'", SourcePosition);
+            return FindSymbol(scope).Evaluate(scope);
         }
 
         public override AddressingMode GetAddressingMode(AstScope scope)
         {
-            var symbolDefinition = scope.FindSymbol(_name);
-            if (symbolDefinition != null)
-                return symbolDefinition.GetAddressingMode(scope);
+            return FindSymbol(scope).GetAddressingMode(scope);
+        }
 
-            throw new CodeException($"unknown symbol: '{_name}'", SourcePosition);
+        public override int GetImmediateValue(AstScope scope)
+        {
+            return FindSymbol(scope).GetImmediateValue(scope);
+        }
+
+        public override string GetRegister(AstScope scope)
+        {
+            return FindSymbol(scope).GetRegister(scope);
         }
     }
 
@@ -465,7 +587,7 @@ namespace yaza
             return AddressingMode.Register;
         }
 
-        public override string GetRegister()
+        public override string GetRegister(AstScope scope)
         {
             return _name;
         }
@@ -501,9 +623,9 @@ namespace yaza
             return AddressingMode.Invalid;
         }
 
-        public override string GetRegister()
+        public override string GetRegister(AstScope scope)
         {
-            return Pointer.GetRegister();
+            return Pointer.GetRegister(scope);
         }
 
         public override int GetImmediateValue(AstScope scope)
@@ -588,9 +710,9 @@ namespace yaza
             return AddressingMode.SubOp | RHS.GetAddressingMode(scope);
         }
 
-        public override string GetRegister()
+        public override string GetRegister(AstScope scope)
         {
-            return RHS.GetRegister();
+            return RHS.GetRegister(scope);
         }
 
         public override int GetImmediateValue(AstScope scope)

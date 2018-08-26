@@ -192,7 +192,7 @@ namespace yaza
 
 
         // Define a symbols value
-        public void Define(string symbol, ExprNode node)
+        public void Define(string symbol, ISymbolValue value)
         {
             // Check not already defined in an outer scope
             var outerScope = ContainingScope;
@@ -202,14 +202,14 @@ namespace yaza
             }
 
             // Check if already defined
-            ExprNode existing;
+            ISymbolValue existing;
             if (_symbols.TryGetValue(symbol, out existing))
             {
                 throw new InvalidOperationException(string.Format("Duplicate symbol: '{0}'", symbol));
             }
 
             // Store it
-            _symbols[symbol] = node;
+            _symbols[symbol] = value;
         }
 
         // Check if a symbol is defined in this scope or any outer scope
@@ -219,11 +219,11 @@ namespace yaza
         }
 
         // Find the definition of a symbol
-        public ExprNode FindSymbol(string symbol)
+        public ISymbolValue FindSymbol(string symbol)
         {
-            ExprNode def;
-            if (_symbols.TryGetValue(symbol, out def))
-                return def;
+            ISymbolValue value;
+            if (_symbols.TryGetValue(symbol, out value))
+                return value;
 
             var outerScope = ContainingScope;
             if (outerScope == null)
@@ -233,7 +233,7 @@ namespace yaza
         }
 
         // Dictionary of symbols in this scope
-        Dictionary<string, ExprNode> _symbols = new Dictionary<string, ExprNode>(StringComparer.InvariantCultureIgnoreCase);
+        Dictionary<string, ISymbolValue> _symbols = new Dictionary<string, ISymbolValue>(StringComparer.InvariantCultureIgnoreCase);
 
         public override void Dump(TextWriter w, int indent)
         {
@@ -249,23 +249,34 @@ namespace yaza
             w.WriteLine("Symbols:");
             foreach (var kv in _symbols)
             {
-                w.WriteLine($"    {kv.Key,20}: 0x{kv.Value.Evaluate(this):X4}");
+                var sym = kv.Value as ExprNode;
+                if (sym != null && !(sym is ExprNodeParameterized))
+                    w.WriteLine($"    {kv.Key,20}: 0x{sym.Evaluate(this):X4}");
             }
         }
 
         public override void DefineSymbols(AstScope currentScope)
         {
-            base.DefineSymbols(this);
+            if (this is AstMacroDefinition)
+                base.DefineSymbols(currentScope);
+            else
+                base.DefineSymbols(this);
         }
 
         public override void Layout(AstScope currentScope, LayoutContext ctx)
         {
-            base.Layout(this, ctx);
+            if (this is AstMacroDefinition)
+                base.Layout(currentScope, ctx);
+            else
+                base.Layout(this, ctx);
         }
 
         public override void Generate(AstScope currentScope, GenerateContext ctx)
         {
-            base.Generate(this, ctx);
+            if (this is AstMacroDefinition)
+                base.Generate(currentScope, ctx);
+            else
+                base.Generate(this, ctx);
         }
 
     }
@@ -508,15 +519,35 @@ namespace yaza
         public string Name => _name;
         public ExprNode Value => _value;
 
+        public string[] ParameterNames;
+
         public override void Dump(TextWriter w, int indent)
         {
             w.WriteLine($"{Utils.Indent(indent)}- EQU '{_name}' {SourcePosition.AstDesc()}");
+
+            if (ParameterNames != null)
+            {
+                w.WriteLine($"{Utils.Indent(indent + 1)}- PARAMETERS");
+                foreach (var p in ParameterNames)
+                {
+                    w.WriteLine($"{Utils.Indent(indent + 2)}- '{p}'");
+                }
+            }
+
             _value.Dump(w, indent + 1);
         }
 
         public override void DefineSymbols(AstScope currentScope)
         {
-            currentScope.Define(_name, _value);
+            if (ParameterNames == null)
+            {
+                currentScope.Define(_name, _value);
+            }
+            else
+            {
+                var value = new ExprNodeParameterized(ParameterNames, _value);
+                currentScope.Define(_name + ExprNodeParameterized.MakeSuffix(ParameterNames.Length), value);
+            }
         }
     }
 
@@ -667,7 +698,7 @@ namespace yaza
 
                     case AddressingMode.Deref | AddressingMode.Register:
                         {
-                            var reg = o.GetRegister();
+                            var reg = o.GetRegister(currentScope);
                             if (IsIndexRegister(reg))
                             {
                                 sb.Append($"({reg}+?)");
@@ -680,18 +711,18 @@ namespace yaza
                         break;
 
                     case AddressingMode.Deref | AddressingMode.RegisterPlusImmediate:
-                        sb.Append($"({o.GetRegister()}+?)");
+                        sb.Append($"({o.GetRegister(currentScope)}+?)");
                         break;
 
                     case AddressingMode.Immediate:
                         sb.Append($"?");
                         break;
                     case AddressingMode.Register:
-                        sb.Append($"{o.GetRegister()}");
+                        sb.Append($"{o.GetRegister(currentScope)}");
                         break;
 
                     case AddressingMode.RegisterPlusImmediate:
-                        sb.Append($"{o.GetRegister()}+?");
+                        sb.Append($"{o.GetRegister(currentScope)}+?");
                         break;
                 }
             }
@@ -724,7 +755,7 @@ namespace yaza
                     if ((addressingMode & AddressingMode.Register) != 0 &&
                         (addressingMode & AddressingMode.Deref) != 0 &&
                         (addressingMode & AddressingMode.Immediate) == 0 &&
-                        IsIndexRegister(o.GetRegister()))
+                        IsIndexRegister(o.GetRegister(currentScope)))
                     {
                         // Create the list if not already
                         if (immediateValues == null)
@@ -758,6 +789,139 @@ namespace yaza
     {
         public AstProc() : base("PROC")
         {
+        }
+    }
+
+    public class AstMacroDefinition : AstScope, ISymbolValue
+    {
+        public AstMacroDefinition(string name, string[] parameters)
+            : base("MACRO " + name)
+        {
+            _name = name;
+            _parameters = parameters;
+        }
+
+        string _name;
+        string[] _parameters;
+
+        public override void DefineSymbols(AstScope currentScope)
+        {
+            if (_parameters == null)
+                _parameters = new string[0];
+
+            // Define the symbol
+            currentScope.Define(_name + ExprNodeParameterized.MakeSuffix(_parameters.Length), this);
+        }
+
+        public override void Layout(AstScope currentScope, LayoutContext ctx)
+        {
+            // no-op
+        }
+
+        public override void Generate(AstScope currentScope, GenerateContext ctx)
+        {
+            // no-op
+        }
+
+        public AstScope Resolve(AstScope currentScope, ExprNode[] arguments)
+        {
+            // Create scope
+            var scope = new AstScope("MACRO INVOCATION");
+
+            // Define it
+            for (int i = 0; i < _parameters.Length; i++)
+            {
+                scope.Define(_parameters[i], arguments[i]);
+            }
+
+            // Setup outer scope
+            scope.Container = currentScope;
+
+            return scope;
+        }
+
+        public void DefineSymbolsResolved(AstScope resolvedScope)
+        {
+            base.DefineSymbols(resolvedScope);
+        }
+
+        public void LayoutResolved(AstScope resolvedScope, LayoutContext ctx)
+        {
+            base.Layout(resolvedScope, ctx);
+        }
+
+        public void GenerateResolved(AstScope resolvedScope, GenerateContext ctx)
+        {
+            base.Generate(resolvedScope, ctx);
+        }
+    }
+
+    public class AstMacroInvocation : AstElement
+    {
+        public AstMacroInvocation(SourcePosition position, string macro)
+        {
+            _position = position;
+            _macro = macro;
+        }
+
+        public void AddOperand(ExprNode operand)
+        {
+            _operands.Add(operand);
+        }
+
+        SourcePosition _position;
+        string _macro;
+        List<ExprNode> _operands = new List<ExprNode>();
+
+        public override void Dump(TextWriter w, int indent)
+        {
+            w.WriteLine($"{Utils.Indent(indent)}- {_macro} {SourcePosition.AstDesc()}");
+            foreach (var o in _operands)
+            {
+                o.Dump(w, indent + 1);
+            }
+        }
+
+        public override void DefineSymbols(AstScope currentScope)
+        {
+        }
+
+
+        AstMacroDefinition _macroDefinition;
+        AstScope _resolvedScope;
+        void ResolveMacroDefinition(AstScope currentScope)
+        {
+        }
+
+        public override void Layout(AstScope currentScope, LayoutContext ctx)
+        {
+            // Find the macro definition
+            _macroDefinition = currentScope.FindSymbol(_macro + ExprNodeParameterized.MakeSuffix(_operands.Count)) as AstMacroDefinition;
+            if (_macroDefinition == null)
+                throw new CodeException($"Unrecognized macro: '{_macro}' (with {_operands.Count} arguments)", SourcePosition);
+
+            // Create resolved scope
+            _resolvedScope = _macroDefinition.Resolve(currentScope, _operands.ToArray());
+
+            // Define macro symbols
+            _macroDefinition.DefineSymbolsResolved(_resolvedScope);
+
+            // Layout 
+            _macroDefinition.LayoutResolved(_resolvedScope, ctx);
+        }
+
+        public override void Generate(AstScope currentScope, GenerateContext ctx)
+        {
+            ctx.ListTo(SourcePosition);
+            ctx.EnterMacro();
+            try
+            {
+                _macroDefinition.GenerateResolved(_resolvedScope, ctx);
+            }
+            finally
+            {
+                ctx.LeaveMacro();
+            }
         }
     }
 }

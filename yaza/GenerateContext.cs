@@ -73,7 +73,7 @@ namespace yaza
         }
 
         int _listColumnPos;
-        const int ListColumnWidth = 34;
+        const int ListColumnWidth = 32;
 
         public void WriteListingText(string str)
         {
@@ -94,7 +94,7 @@ namespace yaza
 
         public void ListTo(SourcePosition pos)
         {
-            if (ListFile == null)
+            if (ListFile == null || _macroDepth > 0)
                 return;
 
             // Make sure it's the same file
@@ -142,6 +142,18 @@ namespace yaza
 
             // Store where we've listed to
             _listPosition = pos;
+        }
+
+        int _macroDepth;
+
+        public void EnterMacro()
+        {
+            _macroDepth++;
+        }
+
+        public void LeaveMacro()
+        {
+            _macroDepth--;
         }
 
         public void SetOrg(SourcePosition pos, int address)

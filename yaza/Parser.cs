@@ -80,6 +80,7 @@ namespace yaza
                             case "ELSE":
                             case "ELSEIF":
                             case "ENDP":
+                            case "ENDM":
                                 return;
                         }
                     }
@@ -261,7 +262,7 @@ namespace yaza
                 var name = _tokenizer.TokenString;
                 _tokenizer.Next();
 
-                // Label or equate?
+                // Label?
                 if (_tokenizer.TrySkipToken(Token.Colon))
                 {
                     if (IsReservedWord(name))
@@ -273,19 +274,60 @@ namespace yaza
                     return new AstLabel(name, pos);
                 }
 
-                // Alternate syntax for EQU (no colon)
+                // Parameterized EQU?
+                if (_tokenizer.Token == Token.OpenRound)
+                {
+                    var names = ParseParameterNames();
+
+                    if (_tokenizer.TrySkipIdentifier("EQU"))
+                    {
+                        return new AstEquate(name, ParseOperandExpression())
+                        {
+                            ParameterNames = names,
+                        };
+                    }
+
+                    if (_tokenizer.TrySkipIdentifier("MACRO"))
+                    {
+                        _tokenizer.SkipToken(Token.EOL);
+
+                        var macro = new AstMacroDefinition(name, names);
+                        ParseIntoContainer(macro);
+
+                        _tokenizer.SkipIdentifier("ENDM");
+
+                        return macro;
+                    }
+
+                }
+
+                // EQUATE?
                 if (_tokenizer.TrySkipIdentifier("EQU"))
                 {
                     return new AstEquate(name, ParseOperandExpression());
                 }
 
-                // Must be an instruction
+                // MACRO definition?
+                if (_tokenizer.TrySkipIdentifier("MACRO"))
+                {
+                    _tokenizer.SkipToken(Token.EOL);
+
+                    var macro = new AstMacroDefinition(name, null);
+                    ParseIntoContainer(macro);
+
+                    _tokenizer.SkipIdentifier("ENDM");
+
+                    return macro;
+                }
+
+                // Is it an instruction
                 if (InstructionSet.IsValidInstructionName(name))
                 {
                     return ParseInstruction(pos, name);
                 }
 
-                throw new CodeException($"syntax error: '{name}'", pos);
+                // Must be a macro invocation
+                return ParseMacroInvocation(pos, name);
             }
 
             // What?
@@ -321,6 +363,34 @@ namespace yaza
 
             _tokenizer.SkipIdentifier("ENDIF");
             return ifBlock;
+        }
+
+        string[] ParseParameterNames()
+        {
+            _tokenizer.SkipToken(Token.OpenRound);
+
+            var names = new List<string>();
+            while (true)
+            {
+                // Get parameter name
+                _tokenizer.CheckToken(Token.Identifier);
+                if (IsReservedWord(_tokenizer.TokenString))
+                {
+                    throw new CodeException($"Illegal use of reserved word as a name: '{_tokenizer.TokenString}'", _tokenizer.TokenPosition);
+                }
+
+                // Add to list
+                names.Add(_tokenizer.TokenString);
+
+                _tokenizer.Next();
+
+                // End of list
+                if (_tokenizer.TrySkipToken(Token.CloseRound))
+                    return names.ToArray();
+
+                // Comma
+                _tokenizer.SkipToken(Token.Comma);
+            }
         }
 
         string ParseIncludePath()
@@ -389,6 +459,35 @@ namespace yaza
             }
         }
 
+        AstMacroInvocation ParseMacroInvocation(SourcePosition pos, string name)
+        {
+            var macroInvocation = new AstMacroInvocation(pos, name);
+
+            if (_tokenizer.Token == Token.EOL || _tokenizer.Token == Token.EOF)
+                return macroInvocation;
+
+            while (true)
+            {
+                macroInvocation.AddOperand(ParseOperandExpression());
+                if (!_tokenizer.TrySkipToken(Token.Comma))
+                    return macroInvocation;
+            }
+        }
+
+        ExprNode[] ParseArgumentList()
+        {
+            _tokenizer.SkipToken(Token.OpenRound);
+
+            var args = new List<ExprNode>();
+            while (true)
+            {
+                args.Add(ParseExpression());
+                if (_tokenizer.TrySkipToken(Token.CloseRound))
+                    return args.ToArray();
+                _tokenizer.SkipToken(Token.Comma);
+            }
+        }
+
         ExprNode ParseLeaf()
         {
             // Number literal?
@@ -414,6 +513,12 @@ namespace yaza
                 {
                     var node = new ExprNodeIdentifier(_tokenizer.TokenPosition, _tokenizer.TokenString);
                     _tokenizer.Next();
+
+                    if (_tokenizer.Token == Token.OpenRound)
+                    {
+                        node.Arguments = ParseArgumentList();
+                    }
+
                     return node;
                 }
             }
@@ -460,6 +565,11 @@ namespace yaza
                     Operator = ExprNodeUnary.OpNegate,
                     RHS = ParseUnary(),
                 };
+            }
+
+            if (_tokenizer.TrySkipToken(Token.Plus))
+            {
+                return ParseUnary();
             }
 
             // Parse leaf node
@@ -509,6 +619,39 @@ namespace yaza
 
         ExprNode ParseAdd()
         {
+            var LHS = ParseUnary();
+
+            while (true)
+            {
+                if (_tokenizer.TrySkipToken(Token.Plus))
+                {
+                    LHS = new ExprNodeAdd()
+                    {
+                        LHS = LHS,
+                        RHS = ParseMultiply(),
+                    };
+                }
+                else if (_tokenizer.TrySkipToken(Token.Minus))
+                {
+                    LHS = new ExprNodeAdd()
+                    {
+                        LHS = LHS,
+                        RHS = new ExprNodeUnary()
+                        {
+                            RHS = ParseMultiply(),
+                            OpName = "-",
+                            Operator = ExprNodeUnary.OpNegate
+                        }
+                    };
+                }
+                else
+                    return LHS;
+            }
+        }
+
+        /*
+        ExprNode ParseAdd()
+        {
             var LHS = ParseMultiply();
 
             // Add or subtract?
@@ -518,7 +661,7 @@ namespace yaza
             }
 
             // Create add LTR chain
-            var ltr = new ExprNodeAddLTR();
+            var ltr = new ExprNodeAdd();
             ltr.AddNode(LHS);
 
             // Build chain of add nodes
@@ -540,6 +683,7 @@ namespace yaza
                     return ltr;
             }
         }
+        */
 
         // Shift
         ExprNode ParseShift()
@@ -858,6 +1002,8 @@ namespace yaza
                 case "ELSEIF":
                 case "PROC":
                 case "ENDP":
+                case "MACRO":
+                case "ENDM":
                     return true;
             }
 
