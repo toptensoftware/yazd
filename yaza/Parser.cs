@@ -207,7 +207,8 @@ namespace yaza
             }
 
             // DB?
-            if (_tokenizer.TrySkipIdentifier("DB") || _tokenizer.TrySkipIdentifier("DEFB"))
+            if (_tokenizer.TrySkipIdentifier("DB") || _tokenizer.TrySkipIdentifier("DEFB") 
+                || _tokenizer.TrySkipIdentifier("DM") || _tokenizer.TrySkipIdentifier("DEFM"))
             {
                 var elem = new AstDbElement();
                 ParseDxExpressions(elem);
@@ -215,7 +216,7 @@ namespace yaza
             }
 
             // DW?
-            if (_tokenizer.TrySkipIdentifier("DW") || _tokenizer.TrySkipIdentifier("DEFW") || _tokenizer.TrySkipIdentifier("DM") || _tokenizer.TrySkipIdentifier("DEFM"))
+            if (_tokenizer.TrySkipIdentifier("DW") || _tokenizer.TrySkipIdentifier("DEFW"))
             {
                 var elem = new AstDwElement();
                 ParseDxExpressions(elem);
@@ -249,10 +250,9 @@ namespace yaza
                 // Label or equate?
                 if (_tokenizer.TrySkipToken(Token.Colon))
                 {
-                    // Equate?
-                    if (_tokenizer.TrySkipIdentifier("EQU"))
+                    if (IsReservedWord(name))
                     {
-                        return new AstEquate(name, ParseOperandExpression());
+                        throw new CodeException($"Illegal use of reserved word as a name: '{name}'", pos);
                     }
 
                     // Label
@@ -814,6 +814,38 @@ namespace yaza
 
             // Normal expression
             return ParseExpression();
+        }
+
+        public static bool IsReservedWord(string str)
+        {
+            if (InstructionSet.IsConditionFlag(str) ||
+                InstructionSet.IsValidInstructionName(str) ||
+                InstructionSet.IsValidRegister(str))
+                return true;
+
+            switch (str.ToUpperInvariant())
+            {
+                case "ORG":
+                case "SEEK":
+                case "END":
+                case "INCLUDE":
+                case "INCBIN":
+                case "EQU":
+                case "DB":
+                case "DEFB":
+                case "DEFM":
+                case "DW":
+                case "DEFW":
+                case "DS":
+                case "DEFS":
+                case "IF":
+                case "ENDIF":
+                case "ELSE":
+                case "ELSEIF":
+                    return true;
+            }
+
+            return false;
         }
     }
 }
