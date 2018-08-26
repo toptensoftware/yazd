@@ -85,7 +85,14 @@ namespace yaza
         {
             foreach (var e in _elements)
             {
-                e.DefineSymbols(currentScope);
+                try
+                {
+                    e.DefineSymbols(currentScope);
+                }
+                catch (CodeException x)
+                {
+                    Log.Error(x);
+                }
             }
         }
 
@@ -93,7 +100,14 @@ namespace yaza
         {
             foreach (var e in _elements)
             {
-                e.Layout(currentScope, ctx);
+                try
+                {
+                    e.Layout(currentScope, ctx);
+                }
+                catch (CodeException x)
+                {
+                    Log.Error(x);
+                }
             }
         }
 
@@ -101,7 +115,14 @@ namespace yaza
         {
             foreach (var e in _elements)
             {
-                e.Generate(currentScope, ctx);
+                try
+                {
+                    e.Generate(currentScope, ctx);
+                }
+                catch (CodeException x)
+                {
+                    Log.Error(x);
+                }
             }
         }
 
@@ -135,14 +156,7 @@ namespace yaza
 
         public override void DefineSymbols(AstScope currentScope)
         {
-            try
-            {
-                _isTrue = Condition.Evaluate(currentScope) != 0;
-            }
-            catch (CodeException x)
-            {
-                Log.Error(x);
-            }
+            _isTrue = Condition.Evaluate(currentScope) != 0;
 
             if (_isTrue)
                 TrueBlock.DefineSymbols(currentScope);
@@ -274,14 +288,7 @@ namespace yaza
 
         public override void Layout(AstScope currentScope, LayoutContext ctx)
         {
-            try
-            {
-                ctx.SetOrg(_address = _expr.Evaluate(currentScope));
-            }
-            catch (CodeException x)
-            {
-                Log.Error(x);
-            }
+            ctx.SetOrg(_address = _expr.Evaluate(currentScope));
         }
 
         public override void Generate(AstScope currentScope, GenerateContext ctx)
@@ -314,15 +321,7 @@ namespace yaza
         public override void Generate(AstScope currentScope, GenerateContext ctx)
         {
             ctx.ListTo(SourcePosition);
-
-            try
-            {
-                ctx.Seek(_expr.Evaluate(currentScope));
-            }
-            catch (CodeException x)
-            {
-                Log.Error(x);
-            }
+            ctx.Seek(_expr.Evaluate(currentScope));
         }
     }
 
@@ -422,14 +421,7 @@ namespace yaza
 
         public override void Layout(AstScope currentScope, LayoutContext ctx)
         {
-            try
-            {
-                ctx.ReserveBytes(_bytes = _bytesExpression.Evaluate(currentScope));
-            }
-            catch (CodeException x)
-            {
-                Log.Error(x);
-            }
+            ctx.ReserveBytes(_bytes = _bytesExpression.Evaluate(currentScope));
         }
 
         public override void Generate(AstScope currentScope, GenerateContext ctx)
@@ -648,67 +640,59 @@ namespace yaza
 
             sb.Append(_mnemonic);
 
-            try
+            for (int i = 0; i < _operands.Count; i++)
             {
-                for (int i = 0; i < _operands.Count; i++)
+                if (i > 0)
+                    sb.Append(",");
+                else
+                    sb.Append(" ");
+
+                var o = _operands[i];
+
+                var addressingMode = o.GetAddressingMode(currentScope);
+
+                if ((addressingMode & AddressingMode.SubOp) != 0)
                 {
-                    if (i > 0)
-                        sb.Append(",");
-                    else
-                        sb.Append(" ");
-
-                    var o = _operands[i];
-
-                    var addressingMode = o.GetAddressingMode(currentScope);
-
-                    if ((addressingMode & AddressingMode.SubOp) != 0)
-                    {
-                        sb.Append(o.GetSubOp());
-                        sb.Append(" ");
-                        addressingMode = addressingMode & ~AddressingMode.SubOp;
-                    }
-
-                    switch (addressingMode)
-                    {
-                        case AddressingMode.Deref | AddressingMode.Immediate:
-                            sb.Append($"(?)");
-                            break;
-
-                        case AddressingMode.Deref | AddressingMode.Register:
-                            {
-                                var reg = o.GetRegister();
-                                if (IsIndexRegister(reg))
-                                {
-                                    sb.Append($"({reg}+?)");
-                                }
-                                else
-                                {
-                                    sb.Append($"({reg})");
-                                }
-                            }
-                            break;
-
-                        case AddressingMode.Deref | AddressingMode.RegisterPlusImmediate:
-                            sb.Append($"({o.GetRegister()}+?)");
-                            break;
-
-                        case AddressingMode.Immediate:
-                            sb.Append($"?");
-                            break;
-                        case AddressingMode.Register:
-                            sb.Append($"{o.GetRegister()}");
-                            break;
-
-                        case AddressingMode.RegisterPlusImmediate:
-                            sb.Append($"{o.GetRegister()}+?");
-                            break;
-                    }
+                    sb.Append(o.GetSubOp());
+                    sb.Append(" ");
+                    addressingMode = addressingMode & ~AddressingMode.SubOp;
                 }
-            }
-            catch (CodeException x)
-            {
-                Log.Error(x);
-                return;
+
+                switch (addressingMode)
+                {
+                    case AddressingMode.Deref | AddressingMode.Immediate:
+                        sb.Append($"(?)");
+                        break;
+
+                    case AddressingMode.Deref | AddressingMode.Register:
+                        {
+                            var reg = o.GetRegister();
+                            if (IsIndexRegister(reg))
+                            {
+                                sb.Append($"({reg}+?)");
+                            }
+                            else
+                            {
+                                sb.Append($"({reg})");
+                            }
+                        }
+                        break;
+
+                    case AddressingMode.Deref | AddressingMode.RegisterPlusImmediate:
+                        sb.Append($"({o.GetRegister()}+?)");
+                        break;
+
+                    case AddressingMode.Immediate:
+                        sb.Append($"?");
+                        break;
+                    case AddressingMode.Register:
+                        sb.Append($"{o.GetRegister()}");
+                        break;
+
+                    case AddressingMode.RegisterPlusImmediate:
+                        sb.Append($"{o.GetRegister()}+?");
+                        break;
+                }
             }
 
             _instruction = InstructionSet.Find(sb.ToString());
@@ -755,24 +739,12 @@ namespace yaza
                             immediateValues = new List<int>();
 
                         // Get the immediate value
-                        try
-                        {
-                            immediateValues.Add(o.GetImmediateValue(currentScope));
-                        }
-                        catch (CodeException x)
-                        {
-                            Log.Error(x);
-                            immediateValues.Add(0);
-                        }
+                        immediateValues.Add(o.GetImmediateValue(currentScope));
                     }
                 }
 
                 // Generate the instruction
                 _instruction.Generate(ctx, SourcePosition, immediateValues?.ToArray());
-            }
-            catch (CodeException x)
-            {
-                Log.Error(x);
             }
             finally
             {

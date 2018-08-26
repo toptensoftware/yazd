@@ -107,7 +107,14 @@ namespace yaza
                     // Skip to next line
                     while (_tokenizer.Token != Token.EOF && _tokenizer.Token != Token.EOL)
                     {
-                        _tokenizer.Next();
+                        try
+                        {
+                            _tokenizer.Next();
+                        }
+                        catch (CodeException)
+                        {
+                            // Ignore other parse errors on this line
+                        }
                     }
                 }
             }

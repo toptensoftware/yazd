@@ -143,7 +143,7 @@ namespace yaza
 
         public CodeException Unexpected()
         {
-            return new CodeException($"syntax error: '{DescribeToken(Token)}'", TokenPosition);
+            return new CodeException($"syntax error: unexpected: {DescribeToken(Token)}", TokenPosition);
         }
 
         public CodeException Unexpected(string expected)
@@ -439,24 +439,31 @@ namespace yaza
             // Hex, decimal, or binary number
             var number = _source.SkipAndExtract(IsHexDigit);
 
-            // Hex suffix?
-            if (_source.SkipI('h'))
+            try
             {
-                return Convert.ToInt32(number, 16);
-            }
+                // Hex suffix?
+                if (_source.SkipI('h'))
+                {
+                    return Convert.ToInt32(number, 16);
+                }
 
-            // Hex number
-            if (number.StartsWith("0b"))
+                // Hex number
+                if (number.StartsWith("0b"))
+                {
+                    return Convert.ToInt32(number.Substring(2), 2);
+                }
+
+                // Octal?
+                if (number[0] == '0')
+                    return Convert.ToInt32(number, 8);
+
+                // Assume decimal
+                return Convert.ToInt32(number);
+            }
+            catch (Exception)
             {
-                return Convert.ToInt32(number.Substring(2), 2);
+                throw new CodeException($"Misformed number: '{number}'", TokenPosition);
             }
-
-            // Octal?
-            if (number[0] == '0')
-                return Convert.ToInt32(number, 8);
-
-            // Assume decimal
-            return Convert.ToInt32(number);
         }
 
         bool IsDigit(char ch)
