@@ -625,6 +625,18 @@ namespace yaza
                 return node;
             }
 
+
+            // Defined operator?
+            if (_tokenizer.TrySkipIdentifier("defined"))
+            {
+                _tokenizer.SkipToken(Token.OpenRound);
+                _tokenizer.CheckToken(Token.Identifier);
+                var node = new ExprNodeIsDefined(_tokenizer.TokenString);
+                _tokenizer.Next();
+                _tokenizer.SkipToken(Token.CloseRound);
+                return node;
+            }
+
             // Identifier
             if (_tokenizer.Token == Token.Identifier)
             {
@@ -1133,6 +1145,9 @@ namespace yaza
                 case "ENDM":
                 case "DEFBITS":
                 case "BITMAP":
+                case "ENDB":
+                case "ERROR":
+                case "WARNING":
                     return true;
             }
 

@@ -837,4 +837,48 @@ namespace yaza
         }
     }
 
+
+    // This expression node temporarily overrides the value of $ while
+    // the RHS expression is evaluated.  This is used by EQU definitions
+    // to resolve $ to the loation the EQU was defined - not the location
+    // it was invoked from.  See also ExprNodeIP
+    public class ExprNodeIsDefined : ExprNode
+    {
+        public ExprNodeIsDefined(string symbolName)
+        {
+            _symbolName = symbolName;
+        }
+
+        string _symbolName;
+
+        public override void Dump(TextWriter w, int indent)
+        {
+            w.WriteLine($"{Utils.Indent(indent)}- defined({_symbolName})");
+        }
+
+        public override int Evaluate(AstScope scope)
+        {
+            if (scope.IsSymbolDefined(_symbolName))
+                return 1;
+            else
+                return 0;
+        }
+        public override AddressingMode GetAddressingMode(AstScope scope)
+        {
+            return AddressingMode.Immediate;
+        }
+        public override string GetRegister(AstScope scope)
+        {
+            return null;
+        }
+        public override string GetSubOp()
+        {
+            return null;
+        }
+        public override int GetImmediateValue(AstScope scope)
+        {
+            return Evaluate(scope);
+        }
+    }
+
 }

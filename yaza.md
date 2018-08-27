@@ -6,14 +6,15 @@
 
 Options:
 
-    --output:filename      Sets the name of the generated output file
-    --sym[:filename]       Generates a symbol table file
-    --lst[:filename]       Generates a list file
-    --ast[:filename]       Outputs the Abstract Syntax Tree (for debugging)
-    --define:symbol[=expr] Defines a symbol and optional sets its value
-    --instructionSet       Lists all supported instructions to stdout
-	--help                 Show these help instruction
-	--v                    Show version information
+    --ast[:<filename>]         Dump the AST
+    --define:<symbol>[=<expr>] Define a symbol with optional value
+    --help                     Show these help instruction
+    --include:<directory>      Specifies an additional include/incbin directory
+    --instructionSet           Display a list of all support instructions
+    --list[:<filename>]        Generate a list file
+    --output:<filename>        Output file
+    --sym[:<filename>]         Generate a symbols file
+    --v                        Show version information
 
 Response file containing arguments can be specified using the @ prefix
 
@@ -81,19 +82,19 @@ Various numbers formats are supported:
 The following expression operators are supported (shown in order of operation)
 
 ```
-( )         ; grouping
-~ ! - +     ; bitwise complement, logical not, negate, postive
-* / %       ; multiply, divide, modulus
-+ -         ; add, subtract
-<< >>       ; shift left, shift right
-<= >= < >   ; less-equal, greater-equal, less, greater
-== !=       ; equal, not equal
-&           ; bitwise AND
-^           ; bitwise XOR
-|           ; bitwise OR
-&&          ; logical AND
-||          ; logical OR
-? :         ; ternery operator
+( ) defined     ; grouping and the `defined` operator
+~ ! - +         ; bitwise complement, logical not, negate, postive
+* / %           ; multiply, divide, modulus
++ -             ; add, subtract
+<< >>           ; shift left, shift right
+<= >= < >       ; less-equal, greater-equal, less, greater
+== !=           ; equal, not equal
+&               ; bitwise AND
+^               ; bitwise XOR
+|               ; bitwise OR
+&&              ; logical AND
+||              ; logical OR
+? :             ; ternery operator
 ```
 
 All numeric expressions are evaluated as 32-bit signed integers.  An error will be generated if the final resulting value does fit in the target operand.  For boolean (aka logical) operands, zero is treated as false and any non-zero value is treated as true.
@@ -115,6 +116,17 @@ So this will generate an error
 Instead, use this:
 
     LD      HL,0+(23+5)*10      ; This switches the expression parser out of dereference mode
+
+
+The `defined` operator checks if a symbol has been defined.
+
+eg:
+
+~~~
+if defined(DEBUG) && !defined(OPTIMIZED)
+    ; debug code goes here
+end if
+~~~
 
 
 ## ORG Directive
@@ -159,7 +171,6 @@ You can also reserve a specified number bytes with the `DS` or `DEFS` directive:
 SCRATCHPAD: DS  1024
 ~~~
 
-
 ## EQU Directive
 
 The `EQU` directive lets you define symbols.
@@ -186,7 +197,7 @@ ENDOFVRAM   EQU     (VRAM+VRAMSIZE)
 
 ## Parameterized EQU Directives
 
-EQU directive can be parameterized:
+EQU directives can be parameterized:
 
 ~~~
 PCGCHAR(label)  EQU     0x80 + (label - pcgdata) / 16
@@ -227,7 +238,7 @@ The `$$` symbol also refers to the current instruction address, but when used in
 
 The `if`, `else`, `elseif` and `endif` directives can be used to conditionally include code.
 
-Use the `--define` command line switch to set symbols to be evaluated during compilation.  eg: suppose you want to use a common code base for multiple versions of a product you could compile different versions:
+Use the `--define` command line switch to set symbols to be used during compilation.  eg: suppose you want to use a common code base for multiple versions of a product you could compile different versions:
 
 ~~~
 yaza myprogram.asm --define:targetMachine=MICROBEE --output:myprogram.microbee.bin
@@ -256,16 +267,15 @@ else
     error   "Unsupported machine"
 
 endif
-
 ~~~
 
-Important:  each branch of the `if` directive (even those that evaluate to false) must be syntactically correct YAZA code - if directives can't be used to "commment out" code.
+Important:  each branch of the `if` directive (even those that evaluate to false) must be syntactically correct  code - `if` directives can't be used to "commment out" code.
 
 ## PROC Directive
 
 The `PROC`/`ENDP` directives can be used to define a local symbol scope.
 
-In the following example, both functions have a local label `loop` which don't conflict because they're each within their own local `PROC` scope.
+In the following example, both functions have a local label `loop` that won't conflict because they're each within their own local `PROC` scope.
 
 ~~~
 DELAY1: PROC
@@ -290,7 +300,7 @@ ENDP
 ~~~
 
 
-Note: although `PROC`'s are typically used to define functions scopes, they don't have to be.  The label before `PROC` is optional and PROCs can even be nested if so desired.  They're really just a scoping syntax and don't infer any other meaning.
+Note: although `PROC`'s are typically used to define function scopes, they don't have to be.  The label before `PROC` is optional and PROCs can even be nested if so desired.  They're really just a scoping syntax and don't infer any other meaning.
 
 
 ## MACRO Directive
@@ -343,7 +353,7 @@ The `incbin` embeds binary data from a file:
     incbin "levelmap.bin"
 ```
 
-In both cases the included file is searched for relative to the file containing the include/incbin directive.
+In both cases the included file is searched for relative to the file containing the include/incbin directive and if not found any directories specified by the `--include` command line option are searched.
 
 
 ## DEFBITS and BITMAP Directive
