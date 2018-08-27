@@ -431,6 +431,14 @@ Note that the `DEFBITS` directive can define multiple bits:
     ENDB
 ~~~
 
+Instead of using a string bit pattern in DEFBITS, you can also use a bit width expression and value expression:
+
+~~~
+    DEFBITS "X", 4, 1          ; Equivalent to "0001" (value = 1, width = 4 bits)
+    DEFBITS "Y", 4, 2          ; Equivalent to "0010"
+    DEFBITS "Z", 4, 3          ; Equivalent to "0010"
+~~~
+
 Another example:
 
     DEFBITS "#", "1"            ; The # character will represent a one bit

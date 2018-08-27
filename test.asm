@@ -1,11 +1,7 @@
 
-M1	MACRO
-	M2
-ENDM
+	DEFBITS "#", 4, 14
 
-M2 MACRO
-	LD	HL,0xF000
-ENDM
-
-	M1
+	BITMAP 8,1
+		"######"
+	ENDB
 

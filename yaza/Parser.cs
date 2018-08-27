@@ -19,7 +19,7 @@ namespace yaza
         public AstContainer Parse(string displayName, string location)
         {
             var filetext = System.IO.File.ReadAllText(location);
-            var source = new StringSource(filetext, displayName, location);
+            var source = new StringSource(filetext + "\n", displayName, location);
             return Parse(source);
         }
 
@@ -187,7 +187,7 @@ namespace yaza
                 // Parse it
                 var p = new Parser();
                 p.OuterParser = this;
-                var content = p.Parse(new StringSource(includeText, System.IO.Path.GetFileName(includeFile), includeFile));
+                var content = p.Parse(new StringSource(includeText + "\n", System.IO.Path.GetFileName(includeFile), includeFile));
 
                 // Skip the filename
                 _tokenizer.Next();
@@ -296,12 +296,22 @@ namespace yaza
                 // Skip the comma
                 _tokenizer.SkipToken(Token.Comma);
 
-                // Get the bit pattern
-                _tokenizer.CheckToken(Token.String);
-                var bitPattern = _tokenizer.TokenString;
-                _tokenizer.Next();
+                if (_tokenizer.Token == Token.String)
+                {
+                    // Get the bit pattern
+                    _tokenizer.CheckToken(Token.String);
+                    var bitPattern = _tokenizer.TokenString;
+                    _tokenizer.Next();
+                    return new AstDefBits(character, bitPattern);
+                }
+                else
+                {
+                    var bitWidth = ParseExpression();
+                    _tokenizer.SkipToken(Token.Comma);
+                    var value = ParseExpression();
+                    return new AstDefBits(character, value, bitWidth);
+                }
 
-                return new AstDefBits(character, bitPattern);
             }
 
             // BITMAP
@@ -623,6 +633,20 @@ namespace yaza
                 var node = new ExprNodeLiteral(_tokenizer.TokenNumber);
                 _tokenizer.Next();
                 return node;
+            }
+
+            // Character literal?
+            if (_tokenizer.Token == Token.String)
+            {
+                var str = _tokenizer.TokenString;
+                if (str.Length != 1)
+                {
+                    throw new CodeException("Only single character strings can be used in strings", _tokenizer.TokenPosition);
+                }
+
+                _tokenizer.Next();
+
+                return new ExprNodeLiteral(str[0]);
             }
 
 

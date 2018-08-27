@@ -982,10 +982,41 @@ namespace yaza
             _bitPattern = bitPattern;
         }
 
+        public AstDefBits(string character, ExprNode value, ExprNode bitWidth)
+        {
+            _character = character;
+            _value = value;
+            _bitWidth = bitWidth;
+        }
+
         string _character;
         string _bitPattern;
+        ExprNode _value;
+        ExprNode _bitWidth;
 
-        public string BitPattern => _bitPattern;
+        public string GetBitPattern(AstScope scope)
+        {
+            if (_bitPattern == null)
+            {
+                var value = _value.Evaluate(scope);
+                var bitWidth = _bitWidth.Evaluate(scope);
+                var str = Convert.ToString(value, 2);
+                if (str.Length > bitWidth)
+                {
+                    var cutPart = str.Substring(0, str.Length - bitWidth);
+                    if (cutPart.Distinct().Count() != 1 || cutPart[0] != str[str.Length - bitWidth])
+                        throw new CodeException($"DEFBITS value 0b{str} doesn't fit in {bitWidth} bits", SourcePosition);
+                }
+                else
+                {
+                    str = new string('0', bitWidth - str.Length) + str;
+                }
+
+                _bitPattern = str;
+            }
+
+            return _bitPattern;
+        }
 
         public override void Dump(TextWriter w, int indent)
         {
@@ -999,11 +1030,14 @@ namespace yaza
                 throw new CodeException("Bit pattern names must be a single character", SourcePosition);
             }
 
-            for (int i = 0; i < _bitPattern.Length; i++)
+            if (_bitPattern != null)
             {
-                if (_bitPattern[i] != '0' && _bitPattern[i] != '1')
+                for (int i = 0; i < _bitPattern.Length; i++)
                 {
-                    throw new CodeException("Bit patterns must only contain '1' and '0' characters", SourcePosition);
+                    if (_bitPattern[i] != '0' && _bitPattern[i] != '1')
+                    {
+                        throw new CodeException("Bit patterns must only contain '1' and '0' characters", SourcePosition);
+                    }
                 }
             }
 
@@ -1071,7 +1105,7 @@ namespace yaza
                     if (bitdef == null)
                         throw new CodeException("No bit definition for character '{ch}'", SourcePosition);
 
-                    row.Append(bitdef.BitPattern);
+                    row.Append(bitdef.GetBitPattern(currentScope));
                 }
 
                 bits.Add(row.ToString());
