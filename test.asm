@@ -1,9 +1,11 @@
-start:
-defs 0x100
 
-size equ $-start
+M1	MACRO
+	M2
+ENDM
 
-defs 0x200
+M2 MACRO
+	LD	HL,0xF000
+ENDM
 
-	ld HL,size
+	M1
 

@@ -10,17 +10,20 @@ Options:
     --sym[:filename]       Generates a symbol table file
     --lst[:filename]       Generates a list file
     --ast[:filename]       Outputs the Abstract Syntax Tree (for debugging)
+    --define:symbol[=expr] Defines a symbol and optional sets its value
     --instructionSet       Lists all supported instructions to stdout
 	--help                 Show these help instruction
 	--v                    Show version information
 
 Response file containing arguments can be specified using the @ prefix
 
+Defining a symbol without specifying a value sets the symbol's value as `1`.
+
 Example:
 
     yaza myprogram.asm --lst
 
-## Instructions
+## Basics
 
 Instructions should be written using the standard Zilog Z-80 instruction format.  A full list of supported instructions (including undocumented instructions) can be obtained using `yaza --instructionSet`.
 
@@ -32,6 +35,12 @@ Example:
         LD  BC,03FFh
         LDIR
 ~~~
+
+
+## Case Insensitive
+
+YAZA is case insensitive for everything except DEFBITS definitions.  Instruction mnemonics, registers, condition flags, symbols etc... can all be specified in any case and symbol look ups are case insensitive.
+
 
 ## Labels
 
@@ -87,7 +96,7 @@ The following expression operators are supported (shown in order of operation)
 ? :         ; ternery operator
 ```
 
-All numeric expressions are evaluated as 32-bit signed integers.  An error will be generated if the final resulting value does fit in the target operand.
+All numeric expressions are evaluated as 32-bit signed integers.  An error will be generated if the final resulting value does fit in the target operand.  For boolean (aka logical) operands, zero is treated as false and any non-zero value is treated as true.
 
 Note that parentheses are used for two purposes - expression group and pointer dereferencing.
 
@@ -204,14 +213,28 @@ The `$` symbol refers to the current instruction address:
         DJNZ    $           ; loop to self
 ~~~
 
+In an EQU directive, the `$` symbol resolves to the instruction address at the location the EQU was defined.  eg: this works as expected
+
+~~~
+levelData:
+        incbin "levelData.bin"
+levelDataSize EQU $-levelData
+~~~
+
+The `$$` symbol also refers to the current instruction address, but when used in an EQU it resolves to the location the EQU is being invoked from - not the location where the EQU was originally defined.
+
 ## Conditional Compilation
 
 The `if`, `else`, `elseif` and `endif` directives can be used to conditionally include code.
 
-eg: suppose you're want to use a common code base for multiple versions of a product
+Use the `--define` command line switch to set symbols to be evaluated during compilation.  eg: suppose you want to use a common code base for multiple versions of a product you could compile different versions:
 
 ~~~
+yaza myprogram.asm --define:targetMachine=MICROBEE --output:myprogram.microbee.bin
+yaza myprogram.asm --define:targetMachine=TRS80 --output:myprogram.trs80.bin
+~~~
 
+~~~
 TRS80       EQU     1
 MICROBEE    EQU     2
 SORCERER    EQU     3
@@ -226,7 +249,7 @@ elseif targetMachine==MICROBEE
 
 elseif targetMachine==SORCERER
 
-    ; code for sorcerer
+    ; code for Sorcerer
 
 else
 
@@ -236,7 +259,7 @@ endif
 
 ~~~
 
-Note that each branch of the if directive (even those that evaluate to false) must be syntactically correct YAZA code - if directives can't be used to "commment out" code.
+Important:  each branch of the `if` directive (even those that evaluate to false) must be syntactically correct YAZA code - if directives can't be used to "commment out" code.
 
 ## PROC Directive
 

@@ -279,7 +279,7 @@ namespace yaza
                 base.Generate(this, ctx);
         }
 
-        // See ExprNodeIPOverride
+        // See ExprNodeEquWrapper
         public int? ipOverride;
     }
 
@@ -509,10 +509,10 @@ namespace yaza
     // "EQU" directive
     public class AstEquate : AstElement
     {
-        public AstEquate(string name, ExprNode value)
+        public AstEquate(string name, ExprNode value, SourcePosition position)
         {
             _name = name;
-            _value = new ExprNodeIPOverride(value);
+            _value = new ExprNodeEquWrapper(value, name, position);
         }
 
         string _name;
@@ -556,7 +556,7 @@ namespace yaza
         public override void Layout(AstScope currentScope, LayoutContext ctx)
         {
             // Capture the current ip address as the place where this EQU was defined
-            ((ExprNodeIPOverride)_value).SetIPOverride(ctx.ip);
+            ((ExprNodeEquWrapper)_value).SetIPOverride(ctx.ip);
 
             // Do default
             base.Layout(currentScope, ctx);
@@ -852,19 +852,56 @@ namespace yaza
             return scope;
         }
 
+        bool _recursionFlag;
+
+        void CheckForRecursion()
+        {
+            if (_recursionFlag)
+            {
+                throw new CodeException($"Recursive macro reference: {_name}", SourcePosition);
+            }
+        }
+
         public void DefineSymbolsResolved(AstScope resolvedScope)
         {
-            base.DefineSymbols(resolvedScope);
+            CheckForRecursion();
+            _recursionFlag = true;
+            try
+            {
+                base.DefineSymbols(resolvedScope);
+            }
+            finally
+            {
+                _recursionFlag = false;
+            }
         }
 
         public void LayoutResolved(AstScope resolvedScope, LayoutContext ctx)
         {
-            base.Layout(resolvedScope, ctx);
+            CheckForRecursion();
+            _recursionFlag = true;
+            try
+            {
+                base.Layout(resolvedScope, ctx);
+            }
+            finally
+            {
+                _recursionFlag = false;
+            }
         }
 
         public void GenerateResolved(AstScope resolvedScope, GenerateContext ctx)
         {
-            base.Generate(resolvedScope, ctx);
+            CheckForRecursion();
+            _recursionFlag = true;
+            try
+            {
+                base.Generate(resolvedScope, ctx);
+            }
+            finally
+            {
+                _recursionFlag = false;
+            }
         }
     }
 
@@ -1002,7 +1039,7 @@ namespace yaza
             _height.Dump(w, indent + 1);
             foreach (var v in _strings)
             {
-                w.WriteLine($"{Utils.Indent(indent+1)} '{v}'");
+                w.WriteLine($"{Utils.Indent(indent + 1)} '{v}'");
             }
         }
 
@@ -1096,6 +1133,48 @@ namespace yaza
 
             // Now list the bytes
             ctx.EmitBytes(_bytes, true);
+        }
+    }
+
+    class AstErrorWarning : AstElement
+    {
+        public AstErrorWarning(string message, bool warning)
+        {
+            _message = message;
+            _warning = warning;
+        }
+
+        string _message;
+        bool _warning;
+
+        public override void DefineSymbols(AstScope currentScope)
+        {
+            base.DefineSymbols(currentScope);
+        }
+
+        public override void Layout(AstScope currentScope, LayoutContext ctx)
+        {
+            base.Layout(currentScope, ctx);
+        }
+
+        public override void Dump(TextWriter w, int indent)
+        {
+            if (_warning)
+                w.WriteLine($"{Utils.Indent(indent)}- WARNING: '{_message}' {SourcePosition.AstDesc()}");
+            else
+                w.WriteLine($"{Utils.Indent(indent)}- ERROR: '{_message}' {SourcePosition.AstDesc()}");
+        }
+
+        public override void Generate(AstScope currentScope, GenerateContext ctx)
+        {
+            if (_warning)
+            {
+                Log.Warning(SourcePosition, _message);
+            }
+            else
+            {
+                Log.Error(SourcePosition, _message);
+            }
         }
     }
 }

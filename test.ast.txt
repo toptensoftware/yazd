@@ -1,16 +1,16 @@
 - SCOPE global (no file location)
   - CONTAINER test.asm (test.asm 1,1)
     - LABEL 'start' (test.asm 1,1)
-    - DW (test.asm 2,1)
-      - literal 256
-    - EQU 'size' (test.asm 4,1)
+    - INCLUDE 'c:\temp\data.bin' (test.asm 3,1)
+      - CONTAINER data.bin (data.bin 1,1)
+    - EQU 'size' (test.asm 5,1)
       - ip override $ => 0x0000
         - operator +
-          - identifier '$'
+          - identifier '$$'
           - operator -
             - identifier 'start'
-    - DW (test.asm 6,1)
+    - DW (test.asm 7,1)
       - literal 512
-    - LD (test.asm 8,2)
+    - LD (test.asm 9,2)
       - reg/cond 'HL'
       - identifier 'size'

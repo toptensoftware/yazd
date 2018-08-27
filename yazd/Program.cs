@@ -208,13 +208,13 @@ namespace yazd
 			Console.WriteLine();
 
 			Console.WriteLine("Options:");
-			Console.WriteLine("  --addr:N               Z-80 base address of first byte after header, default=0x0000");
-			Console.WriteLine("  --start:N              Z-80 address to disassemble from, default=addr");
-			Console.WriteLine("  --end:N                Z-80 address to stop at, default=eof");
-			Console.WriteLine("  --len:N                Number of bytes to disassemble (instead of --end)");
-			Console.WriteLine("  --entry:N              Specifies an entry point (see below)");
+			Console.WriteLine("  --addr:<N>             Z-80 base address of first byte after header, default=0x0000");
+			Console.WriteLine("  --start:<N>            Z-80 address to disassemble from, default=addr");
+			Console.WriteLine("  --end:<N>              Z-80 address to stop at, default=eof");
+			Console.WriteLine("  --len:<N>              Number of bytes to disassemble (instead of --end)");
+			Console.WriteLine("  --entry:<N>            Specifies an entry point (see below)");
 			Console.WriteLine("  --xref                 Include referenced locations of labels");
-			Console.WriteLine("  --lst                  Generate a listing file (more detail, can't be assembled)");
+			Console.WriteLine("  --list                 Generate a listing file (more detail, can't be assembled)");
 			Console.WriteLine("  --html                 Generates a HTML file, with hyperlinked references");
 			Console.WriteLine("  --open                 Automatically opens the generated file with default associated app");
 			Console.WriteLine("  --lowercase|lc         Render in lowercase");

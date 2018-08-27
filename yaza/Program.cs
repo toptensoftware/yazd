@@ -120,9 +120,31 @@ namespace yaza
                         break;
 
                     case "output":
-                        if (Value != null)
+                        if (Value == null)
+                        {
+                            throw new InvalidOperationException("--output: requires argument value");
+                        }
+                        else
                         {
                             _outputFile = Value;
+                        }
+                        break;
+
+                    case "include":
+                        if (Value == null)
+                        {
+                            throw new InvalidOperationException("--include: requires argument value");
+                        }
+                        else
+                        {
+                            try
+                            {
+                                _includePaths.Add(System.IO.Path.GetFullPath(Value));
+                            }
+                            catch (Exception x)
+                            {
+                                throw new InvalidOperationException($"Invalid include path: {Value} - {x.Message}");
+                            }
                         }
                         break;
 
@@ -143,6 +165,7 @@ namespace yaza
 
         string _inputFile;
         string _outputFile;
+        List<string> _includePaths = new List<string>();
         string _astFile;
         string _symbolsFile;
         string _listFile;
@@ -179,14 +202,15 @@ namespace yaza
             Console.WriteLine();
 
             Console.WriteLine("Options:");
-            Console.WriteLine("  --help                 Show these help instruction");
-            Console.WriteLine("  --v                    Show version information");
-            Console.WriteLine("  --output:filename      Output file");
-            Console.WriteLine("  --list[:filename]      Generate a list file");
-            Console.WriteLine("  --sym[:filename]       Generate a symbols file");
-            Console.WriteLine("  --ast[:filename]       Dump the AST");
-            Console.WriteLine("  --define:symbol[=expr] Define a symbol with optional value");
-            Console.WriteLine("  --instructionSet       Display a list of all support instructions");
+            Console.WriteLine("  --ast[:<filename>]         Dump the AST");
+            Console.WriteLine("  --define:<symbol>[=<expr>] Define a symbol with optional value");
+            Console.WriteLine("  --help                     Show these help instruction");
+            Console.WriteLine("  --include:<directory>      Specifies an additional include/incbin directory");
+            Console.WriteLine("  --instructionSet           Display a list of all support instructions");
+            Console.WriteLine("  --list[:<filename>]        Generate a list file");
+            Console.WriteLine("  --output:<filename>        Output file");
+            Console.WriteLine("  --sym[:<filename>]         Generate a symbols file");
+            Console.WriteLine("  --v                        Show version information");
 
             Console.WriteLine();
             Console.WriteLine("Numeric arguments can be in decimal (no prefix) or hex if prefixed with '0x'.");
@@ -224,6 +248,7 @@ namespace yaza
 
             // Step 1 - Parse the input file
             var p = new Parser();
+            p.IncludePaths = _includePaths;
             var file = p.Parse(_inputFile, System.IO.Path.GetFullPath(_inputFile));
 
             // Step 2 - Create the root scope and define all symbols
@@ -231,8 +256,10 @@ namespace yaza
             root.AddElement(file);
 
             // Define built in symbols
-            var exprNodeIP = new ExprNodeIP();
+            var exprNodeIP = new ExprNodeIP(true);
             root.Define("$", exprNodeIP);
+            var exprNodeIP2 = new ExprNodeIP(false);
+            root.Define("$$", exprNodeIP2);
 
             // Define user specified symboles
             foreach (var kv in _userDefines)
@@ -271,6 +298,7 @@ namespace yaza
             // Step 3 - Map instructions
             var layoutContext = new LayoutContext();
             exprNodeIP.SetContext(layoutContext);
+            exprNodeIP2.SetContext(layoutContext);
             root.Layout(null, layoutContext);
 
             if (Log.ErrorCount == 0)
@@ -279,6 +307,7 @@ namespace yaza
                 var generateContext = new GenerateContext(layoutContext);
 
                 exprNodeIP.SetContext(generateContext);
+                exprNodeIP2.SetContext(generateContext);
 
                 if (_listFile != null)
                     generateContext.ListFile = OpenTextWriter(_listFile, "lst");

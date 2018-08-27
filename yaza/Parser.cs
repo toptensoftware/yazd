@@ -14,6 +14,8 @@ namespace yaza
 
         Tokenizer _tokenizer;
 
+        public List<string> IncludePaths { get; set; }
+
         public AstContainer Parse(string displayName, string location)
         {
             var filetext = System.IO.File.ReadAllText(location);
@@ -263,6 +265,26 @@ namespace yaza
                 return proc;
             }
 
+            // Error
+            if (_tokenizer.TrySkipIdentifier("ERROR"))
+            {
+                _tokenizer.CheckToken(Token.String);
+                var message = _tokenizer.TokenString;
+                _tokenizer.Next();
+
+                return new AstErrorWarning(message, false);
+            }
+
+            // Warning
+            if (_tokenizer.TrySkipIdentifier("WARNING"))
+            {
+                _tokenizer.CheckToken(Token.String);
+                var message = _tokenizer.TokenString;
+                _tokenizer.Next();
+
+                return new AstErrorWarning(message, true);
+            }
+
             // DEFBITS?
             if (_tokenizer.TrySkipIdentifier("DEFBITS"))
             {
@@ -354,7 +376,7 @@ namespace yaza
 
                     if (_tokenizer.TrySkipIdentifier("EQU"))
                     {
-                        return new AstEquate(name, ParseOperandExpression())
+                        return new AstEquate(name, ParseOperandExpression(), pos)
                         {
                             ParameterNames = names,
                         };
@@ -382,7 +404,7 @@ namespace yaza
                         throw new CodeException($"Illegal use of reserved word as a name: '{name}'", pos);
                     }
 
-                    return new AstEquate(name, ParseOperandExpression());
+                    return new AstEquate(name, ParseOperandExpression(), pos);
                 }
 
                 // MACRO definition?
@@ -490,6 +512,28 @@ namespace yaza
             }
             catch
             {
+            }
+
+            // Search include paths
+            var parser = this;
+            while (parser != null)
+            {
+                if (parser.IncludePaths != null)
+                {
+                    foreach (var p in parser.IncludePaths)
+                    {
+                        try
+                        {
+                            var includeFile = System.IO.Path.Combine(p, _tokenizer.TokenString);
+                            if (System.IO.File.Exists(includeFile))
+                                return includeFile;
+                        }
+                        catch { }
+                    }
+                }
+
+                // Try outer parser
+                parser = parser.OuterParser;
             }
 
             // Assume current directory

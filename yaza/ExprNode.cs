@@ -636,10 +636,12 @@ namespace yaza
 
     public class ExprNodeIP : ExprNode
     {
-        public ExprNodeIP()
+        public ExprNodeIP(bool allowOverride)
         {
+            _allowOverride = allowOverride;
         }
 
+        bool _allowOverride;
         GenerateContext _generateContext;
         LayoutContext _layoutContext;
 
@@ -662,8 +664,8 @@ namespace yaza
 
         public override int Evaluate(AstScope scope)
         {
-            // Temporarily overridden? (See ExprNodeIPOverride)
-            if (scope.ipOverride.HasValue)
+            // Temporarily overridden? (See ExprNodeEquWrapper)
+            if (_allowOverride && scope.ipOverride.HasValue)
                 return scope.ipOverride.Value;
 
             // Generating
@@ -685,8 +687,8 @@ namespace yaza
 
         public override int GetImmediateValue(AstScope scope)
         {
-            // Temporarily overridden? (See ExprNodeIPOverride)
-            if (scope.ipOverride.HasValue)
+            // Temporarily overridden? (See ExprNodeEquWrapper)
+            if (_allowOverride && scope.ipOverride.HasValue)
                 return scope.ipOverride.Value;
 
             return _generateContext.ip;
@@ -742,12 +744,14 @@ namespace yaza
     // the RHS expression is evaluated.  This is used by EQU definitions
     // to resolve $ to the loation the EQU was defined - not the location
     // it was invoked from.  See also ExprNodeIP
-    public class ExprNodeIPOverride : ExprNode
+    public class ExprNodeEquWrapper : ExprNode
     {
-        public ExprNodeIPOverride(ExprNode rhs)
+        public ExprNodeEquWrapper(ExprNode rhs, string name, SourcePosition position)
         {
             _rhs = rhs;
             _ipOverride = 0;
+            _name = name;
+            _position = position;
         }
 
         public void SetIPOverride(int ipOverride)
@@ -757,6 +761,17 @@ namespace yaza
 
         ExprNode _rhs;
         int _ipOverride;
+        string _name;
+        SourcePosition _position;
+        bool _recursionCheck;
+
+        void CheckForRecursion()
+        {
+            if (_recursionCheck)
+            {
+                throw new CodeException($"Recursive symbol reference: {_name}", _position);
+            }
+        }
 
         public override void Dump(TextWriter w, int indent)
         {
@@ -766,7 +781,10 @@ namespace yaza
 
         public override int Evaluate(AstScope scope)
         {
+            CheckForRecursion();
+
             var save = scope.ipOverride;
+            _recursionCheck = true;
             try
             {
                 scope.ipOverride = _ipOverride;
@@ -775,11 +793,22 @@ namespace yaza
             finally
             {
                 scope.ipOverride = save;
+                _recursionCheck = false;
             }
         }
         public override AddressingMode GetAddressingMode(AstScope scope)
         {
-            return _rhs.GetAddressingMode(scope);
+            CheckForRecursion();
+
+            _recursionCheck = true;
+            try
+            {
+                return _rhs.GetAddressingMode(scope);
+            }
+            finally
+            {
+                _recursionCheck = false;
+            }
         }
         public override string GetRegister(AstScope scope)
         {
@@ -791,7 +820,10 @@ namespace yaza
         }
         public override int GetImmediateValue(AstScope scope)
         {
+            CheckForRecursion();
+
             var save = scope.ipOverride;
+            _recursionCheck = true;
             try
             {
                 scope.ipOverride = _ipOverride;
@@ -800,6 +832,7 @@ namespace yaza
             finally
             {
                 scope.ipOverride = save;
+                _recursionCheck = false;
             }
         }
     }
