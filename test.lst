@@ -1,0 +1,11 @@
+                                start:
+0000: [256 bytes]               defs 0x100
+                                
+                                size equ $-start
+                                
+0100: [512 bytes]               defs 0x200
+                                
+0300: 21 00 01                  	ld HL,size
+                                
+
+0303:

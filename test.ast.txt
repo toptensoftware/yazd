@@ -1,0 +1,16 @@
+- SCOPE global (no file location)
+  - CONTAINER test.asm (test.asm 1,1)
+    - LABEL 'start' (test.asm 1,1)
+    - DW (test.asm 2,1)
+      - literal 256
+    - EQU 'size' (test.asm 4,1)
+      - ip override $ => 0x0000
+        - operator +
+          - identifier '$'
+          - operator -
+            - identifier 'start'
+    - DW (test.asm 6,1)
+      - literal 512
+    - LD (test.asm 8,2)
+      - reg/cond 'HL'
+      - identifier 'size'

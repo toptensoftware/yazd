@@ -21,6 +21,14 @@ namespace yaza
             return Parse(source);
         }
 
+        public ExprNode ParseExpression(string expr)
+        {
+            _tokenizer = new Tokenizer(new StringSource(expr));
+            var exprNode = ParseExpression();
+            _tokenizer.CheckToken(Token.EOF);
+            return exprNode;
+        }
+
         public AstContainer Parse(StringSource source)
         {
             try
@@ -339,6 +347,11 @@ namespace yaza
                 {
                     var names = ParseParameterNames();
 
+                    if (IsReservedWord(name))
+                    {
+                        throw new CodeException($"Illegal use of reserved word as a name: '{name}'", pos);
+                    }
+
                     if (_tokenizer.TrySkipIdentifier("EQU"))
                     {
                         return new AstEquate(name, ParseOperandExpression())
@@ -364,12 +377,22 @@ namespace yaza
                 // EQUATE?
                 if (_tokenizer.TrySkipIdentifier("EQU"))
                 {
+                    if (IsReservedWord(name))
+                    {
+                        throw new CodeException($"Illegal use of reserved word as a name: '{name}'", pos);
+                    }
+
                     return new AstEquate(name, ParseOperandExpression());
                 }
 
                 // MACRO definition?
                 if (_tokenizer.TrySkipIdentifier("MACRO"))
                 {
+                    if (IsReservedWord(name))
+                    {
+                        throw new CodeException($"Illegal use of reserved word as a name: '{name}'", pos);
+                    }
+
                     _tokenizer.SkipToken(Token.EOL);
 
                     var macro = new AstMacroDefinition(name, null);
@@ -679,7 +702,7 @@ namespace yaza
 
         ExprNode ParseAdd()
         {
-            var LHS = ParseUnary();
+            var LHS = ParseMultiply();
 
             while (true)
             {

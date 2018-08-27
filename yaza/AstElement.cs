@@ -279,6 +279,8 @@ namespace yaza
                 base.Generate(this, ctx);
         }
 
+        // See ExprNodeIPOverride
+        public int? ipOverride;
     }
 
     // "ORG" directive
@@ -510,7 +512,7 @@ namespace yaza
         public AstEquate(string name, ExprNode value)
         {
             _name = name;
-            _value = value;
+            _value = new ExprNodeIPOverride(value);
         }
 
         string _name;
@@ -541,6 +543,7 @@ namespace yaza
         {
             if (ParameterNames == null)
             {
+                // Wrap it in an IP override declaration
                 currentScope.Define(_name, _value);
             }
             else
@@ -548,6 +551,15 @@ namespace yaza
                 var value = new ExprNodeParameterized(ParameterNames, _value);
                 currentScope.Define(_name + ExprNodeParameterized.MakeSuffix(ParameterNames.Length), value);
             }
+        }
+
+        public override void Layout(AstScope currentScope, LayoutContext ctx)
+        {
+            // Capture the current ip address as the place where this EQU was defined
+            ((ExprNodeIPOverride)_value).SetIPOverride(ctx.ip);
+
+            // Do default
+            base.Layout(currentScope, ctx);
         }
     }
 

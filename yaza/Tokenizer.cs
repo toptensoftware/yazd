@@ -453,6 +453,11 @@ namespace yaza
                     return Convert.ToInt32(number.Substring(2), 2);
                 }
 
+                if (number.EndsWith("d"))
+                {
+                    return Convert.ToInt32(number.Substring(0, number.Length), 10);
+                }
+
                 // Octal?
                 if (number[0] == '0')
                     return Convert.ToInt32(number, 8);

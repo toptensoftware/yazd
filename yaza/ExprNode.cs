@@ -662,12 +662,19 @@ namespace yaza
 
         public override int Evaluate(AstScope scope)
         {
+            // Temporarily overridden? (See ExprNodeIPOverride)
+            if (scope.ipOverride.HasValue)
+                return scope.ipOverride.Value;
+
+            // Generating
             if (_generateContext != null)
                 return _generateContext.ip;
 
+            // Layouting?
             if (_layoutContext != null)
                 return _layoutContext.ip;
 
+            // No IP for you!
             throw new CodeException("Symbol $ can't be resolved at this time");
         }
 
@@ -678,6 +685,10 @@ namespace yaza
 
         public override int GetImmediateValue(AstScope scope)
         {
+            // Temporarily overridden? (See ExprNodeIPOverride)
+            if (scope.ipOverride.HasValue)
+                return scope.ipOverride.Value;
+
             return _generateContext.ip;
         }
     }
@@ -726,4 +737,71 @@ namespace yaza
         }
 
     }
+
+    // This expression node temporarily overrides the value of $ while
+    // the RHS expression is evaluated.  This is used by EQU definitions
+    // to resolve $ to the loation the EQU was defined - not the location
+    // it was invoked from.  See also ExprNodeIP
+    public class ExprNodeIPOverride : ExprNode
+    {
+        public ExprNodeIPOverride(ExprNode rhs)
+        {
+            _rhs = rhs;
+            _ipOverride = 0;
+        }
+
+        public void SetIPOverride(int ipOverride)
+        {
+            _ipOverride = ipOverride;
+        }
+
+        ExprNode _rhs;
+        int _ipOverride;
+
+        public override void Dump(TextWriter w, int indent)
+        {
+            w.WriteLine($"{Utils.Indent(indent)}- ip override $ => 0x{_ipOverride:X4}");
+            _rhs.Dump(w, indent + 1);
+        }
+
+        public override int Evaluate(AstScope scope)
+        {
+            var save = scope.ipOverride;
+            try
+            {
+                scope.ipOverride = _ipOverride;
+                return _rhs.Evaluate(scope);
+            }
+            finally
+            {
+                scope.ipOverride = save;
+            }
+        }
+        public override AddressingMode GetAddressingMode(AstScope scope)
+        {
+            return _rhs.GetAddressingMode(scope);
+        }
+        public override string GetRegister(AstScope scope)
+        {
+            return _rhs.GetRegister(scope);
+        }
+        public override string GetSubOp()
+        {
+            return _rhs.GetSubOp();
+        }
+        public override int GetImmediateValue(AstScope scope)
+        {
+            var save = scope.ipOverride;
+            try
+            {
+                scope.ipOverride = _ipOverride;
+                return _rhs.GetImmediateValue(scope);
+            }
+            finally
+            {
+                scope.ipOverride = save;
+            }
+        }
+    }
+
 }

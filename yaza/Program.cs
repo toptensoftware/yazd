@@ -104,6 +104,20 @@ namespace yaza
                         }
                         break;
 
+                    case "define":
+                        if (Value == null)
+                        {
+                            throw new InvalidOperationException("--define: requires argument value");
+                        }
+                        else
+                        {
+                            var eqPos = Value.IndexOf('=');
+                            if (eqPos < 0)
+                                _userDefines.Add(Value, null);
+                            else
+                                _userDefines.Add(Value.Substring(0, eqPos), Value.Substring(eqPos + 1));
+                        }
+                        break;
 
                     case "output":
                         if (Value != null)
@@ -132,6 +146,7 @@ namespace yaza
         string _astFile;
         string _symbolsFile;
         string _listFile;
+        Dictionary<string, string> _userDefines = new Dictionary<string, string>();
 
         public bool ProcessArgs(IEnumerable<string> args)
         {
@@ -166,11 +181,12 @@ namespace yaza
             Console.WriteLine("Options:");
             Console.WriteLine("  --help                 Show these help instruction");
             Console.WriteLine("  --v                    Show version information");
-            Console.WriteLine("  --instructionSet       Display a list of all support instructions");
             Console.WriteLine("  --output:filename      Output file");
             Console.WriteLine("  --list[:filename]      Generate a list file");
             Console.WriteLine("  --sym[:filename]       Generate a symbols file");
             Console.WriteLine("  --ast[:filename]       Dump the AST");
+            Console.WriteLine("  --define:symbol[=expr] Define a symbol with optional value");
+            Console.WriteLine("  --instructionSet       Display a list of all support instructions");
 
             Console.WriteLine();
             Console.WriteLine("Numeric arguments can be in decimal (no prefix) or hex if prefixed with '0x'.");
@@ -214,9 +230,35 @@ namespace yaza
             var root = new AstScope("global");
             root.AddElement(file);
 
+            // Define built in symbols
             var exprNodeIP = new ExprNodeIP();
             root.Define("$", exprNodeIP);
+
+            // Define user specified symboles
+            foreach (var kv in _userDefines)
+            {
+                var defParser = new Parser();
+                if (kv.Value != null)
+                {
+                    try
+                    {
+                        var exprNode = defParser.ParseExpression(kv.Value);
+                        root.Define(kv.Key, exprNode);
+                    }
+                    catch (CodeException x)
+                    {
+                        throw new InvalidOperationException(x.Message + " in command line symbol definition");
+                    }
+                }
+                else
+                {
+                    root.Define(kv.Key, new ExprNodeLiteral(1));
+                }
+            }
+
+            // Run the "Define Symbols" pass
             root.DefineSymbols(null);
+
 
             if (_astFile != null)
             {
