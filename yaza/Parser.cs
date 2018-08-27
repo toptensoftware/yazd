@@ -264,6 +264,39 @@ namespace yaza
 
                 return proc;
             }
+            
+            // RADIX
+            if (_tokenizer.IsIdentifier("RADIX"))
+            {
+                var saveRadix = _tokenizer.DefaultRadix;
+                try
+                {
+                    _tokenizer.DefaultRadix = 10;
+                    _tokenizer.Next();
+                    _tokenizer.CheckToken(Token.Number);
+
+                    switch (_tokenizer.TokenNumber)
+                    {
+                        case 2:
+                        case 8:
+                        case 10:
+                        case 16:
+                            break;
+
+                        default:
+                            throw new CodeException("Invalid radix - must be 2, 8, 10, or 16", _tokenizer.TokenPosition);
+                    }
+
+                    _tokenizer.DefaultRadix = _tokenizer.TokenNumber;
+                    _tokenizer.Next();
+                    return null;
+                }
+                catch
+                {
+                    _tokenizer.DefaultRadix = saveRadix;
+                    throw;
+                }
+            }
 
             // Error
             if (_tokenizer.TrySkipIdentifier("ERROR"))
@@ -375,14 +408,9 @@ namespace yaza
                 }
 
                 // Parameterized EQU?
-                if (_tokenizer.Token == Token.OpenRound)
+                if (_tokenizer.Token == Token.OpenRound && !IsReservedWord(name))
                 {
                     var names = ParseParameterNames();
-
-                    if (IsReservedWord(name))
-                    {
-                        throw new CodeException($"Illegal use of reserved word as a name: '{name}'", pos);
-                    }
 
                     if (_tokenizer.TrySkipIdentifier("EQU"))
                     {
@@ -435,7 +463,7 @@ namespace yaza
                     return macro;
                 }
 
-                // Is it an instruction
+                // Is it an instruction?
                 if (InstructionSet.IsValidInstructionName(name))
                 {
                     return ParseInstruction(pos, name);
@@ -1172,6 +1200,7 @@ namespace yaza
                 case "ENDB":
                 case "ERROR":
                 case "WARNING":
+                case "RADIX":
                     return true;
             }
 

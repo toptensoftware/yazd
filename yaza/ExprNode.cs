@@ -61,6 +61,14 @@ namespace yaza
             return $"/{parameterCount}";
         }
 
+        public static string RemoveSuffix(string name)
+        {
+            var slash = name.IndexOf('/');
+            if (slash < 0)
+                return name;
+            return name.Substring(0, slash);
+        }
+
         string[] _parameterNames;
         ExprNode _body;
 
@@ -695,6 +703,67 @@ namespace yaza
         }
     }
 
+    public class ExprNodeOFS : ExprNode
+    {
+        public ExprNodeOFS(bool allowOverride)
+        {
+            _allowOverride = allowOverride;
+        }
+
+        bool _allowOverride;
+        GenerateContext _generateContext;
+        LayoutContext _layoutContext;
+
+        public void SetContext(GenerateContext ctx)
+        {
+            _generateContext = ctx;
+            _layoutContext = null;
+        }
+
+        public void SetContext(LayoutContext ctx)
+        {
+            _layoutContext = ctx;
+            _generateContext = null;
+        }
+
+        public override void Dump(TextWriter w, int indent)
+        {
+            w.WriteLine($"{Utils.Indent(indent)}- ofs '$ofs' pointer");
+        }
+
+        public override int Evaluate(AstScope scope)
+        {
+            // Temporarily overridden? (See ExprNodeEquWrapper)
+            if (_allowOverride && scope.opOverride.HasValue)
+                return scope.opOverride.Value;
+
+            // Generating
+            if (_generateContext != null)
+                return _generateContext.op;
+
+            // Layouting?
+            if (_layoutContext != null)
+                return _layoutContext.op;
+
+            // No OFS for you!
+            throw new CodeException("Symbol $ofs can't be resolved at this time");
+        }
+
+        public override AddressingMode GetAddressingMode(AstScope scope)
+        {
+            return AddressingMode.Immediate;
+        }
+
+        public override int GetImmediateValue(AstScope scope)
+        {
+            // Temporarily overridden? (See ExprNodeEquWrapper)
+            if (_allowOverride && scope.opOverride.HasValue)
+                return scope.opOverride.Value;
+
+            return _generateContext.op;
+        }
+    }
+
     // Represents a "sub op" operand.  eg: the "RES " part of "LD A,RES 0,(IX+1)"
     public class ExprNodeSubOp : ExprNode
     {
@@ -754,13 +823,15 @@ namespace yaza
             _position = position;
         }
 
-        public void SetIPOverride(int ipOverride)
+        public void SetOverrides(int ipOverride, int opOverride)
         {
             _ipOverride = ipOverride;
+            _opOverride = opOverride;
         }
 
         ExprNode _rhs;
         int _ipOverride;
+        int _opOverride;
         string _name;
         SourcePosition _position;
         bool _recursionCheck;
@@ -775,7 +846,7 @@ namespace yaza
 
         public override void Dump(TextWriter w, int indent)
         {
-            w.WriteLine($"{Utils.Indent(indent)}- ip override $ => 0x{_ipOverride:X4}");
+            w.WriteLine($"{Utils.Indent(indent)}- EQU wrapper $ => 0x{_ipOverride:X4} $ofs => 0x{_opOverride:X4}");
             _rhs.Dump(w, indent + 1);
         }
 
@@ -783,16 +854,19 @@ namespace yaza
         {
             CheckForRecursion();
 
-            var save = scope.ipOverride;
+            var ipSave = scope.ipOverride;
+            var opSave = scope.opOverride;
             _recursionCheck = true;
             try
             {
                 scope.ipOverride = _ipOverride;
+                scope.opOverride = _opOverride;
                 return _rhs.Evaluate(scope);
             }
             finally
             {
-                scope.ipOverride = save;
+                scope.ipOverride = ipSave;
+                scope.opOverride = opSave;
                 _recursionCheck = false;
             }
         }
@@ -822,16 +896,19 @@ namespace yaza
         {
             CheckForRecursion();
 
-            var save = scope.ipOverride;
+            var ipSave = scope.ipOverride;
+            var opSave = scope.opOverride;
             _recursionCheck = true;
             try
             {
                 scope.ipOverride = _ipOverride;
+                scope.opOverride = _opOverride;
                 return _rhs.GetImmediateValue(scope);
             }
             finally
             {
-                scope.ipOverride = save;
+                scope.ipOverride = ipSave;
+                scope.opOverride = opSave;
                 _recursionCheck = false;
             }
         }
@@ -858,7 +935,7 @@ namespace yaza
 
         public override int Evaluate(AstScope scope)
         {
-            if (scope.IsSymbolDefined(_symbolName))
+            if (scope.IsSymbolDefined(_symbolName, true))
                 return 1;
             else
                 return 0;

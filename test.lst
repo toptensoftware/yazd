@@ -1,10 +1,12 @@
-                                
-                                	DEFBITS "#", 4, 14
+                                ZFILL(ptr,len) MACRO
+                                    LD  HL,ptr
+                                    LD  DE,ptr+1
+                                    LD  BC,len-1
+                                    LD  (HL),0
+                                    LDIR
+                                ENDM
                                 
-                                	BITMAP 8,1
-                                		"######"
-                                	ENDB
-0000: EE EE EE                  
-                                
+0000: 21 00 F0 11 01 F0 01 FF   ZFILL 0xF000, 0x400
+0008: 03 36 00 ED B0 
 
-0003:
+000D:

@@ -213,12 +213,32 @@ namespace yaza
 
             // Store it
             _symbols[symbol] = value;
+            _weakMatchTable = null;
         }
 
         // Check if a symbol is defined in this scope or any outer scope
-        public bool IsSymbolDefined(string symbol)
+        public bool IsSymbolDefined(string symbol, bool weakMatch = false)
         {
-            return FindSymbol(symbol) != null;
+            if (weakMatch)
+            {
+                if (_weakMatchTable == null)
+                {
+                    _weakMatchTable = new HashSet<string>(_symbols.Keys.Select(ExprNodeParameterized.RemoveSuffix), StringComparer.InvariantCultureIgnoreCase);
+                }
+
+                if (_weakMatchTable.Contains(symbol))
+                    return true;
+
+                var outerScope = ContainingScope;
+                if (outerScope == null)
+                    return false;
+
+                return outerScope.IsSymbolDefined(symbol, weakMatch);
+            }
+            else
+            {
+                return FindSymbol(symbol) != null;
+            }
         }
 
         // Find the definition of a symbol
@@ -237,6 +257,7 @@ namespace yaza
 
         // Dictionary of symbols in this scope
         Dictionary<string, ISymbolValue> _symbols = new Dictionary<string, ISymbolValue>(StringComparer.InvariantCultureIgnoreCase);
+        HashSet<string> _weakMatchTable;
 
         public override void Dump(TextWriter w, int indent)
         {
@@ -284,6 +305,7 @@ namespace yaza
 
         // See ExprNodeEquWrapper
         public int? ipOverride;
+        public int? opOverride;
     }
 
     // "ORG" directive
@@ -324,6 +346,7 @@ namespace yaza
         }
 
         ExprNode _expr;
+        int _address;
 
         public override void Dump(TextWriter w, int indent)
         {
@@ -333,12 +356,13 @@ namespace yaza
 
         public override void Layout(AstScope currentScope, LayoutContext ctx)
         {
+            ctx.Seek(_address = _expr.Evaluate(currentScope));
         }
 
         public override void Generate(AstScope currentScope, GenerateContext ctx)
         {
             ctx.ListTo(SourcePosition);
-            ctx.Seek(_expr.Evaluate(currentScope));
+            ctx.Seek(_address);
         }
     }
 
@@ -559,7 +583,7 @@ namespace yaza
         public override void Layout(AstScope currentScope, LayoutContext ctx)
         {
             // Capture the current ip address as the place where this EQU was defined
-            ((ExprNodeEquWrapper)_value).SetIPOverride(ctx.ip);
+            ((ExprNodeEquWrapper)_value).SetOverrides(ctx.ip, ctx.op);
 
             // Do default
             base.Layout(currentScope, ctx);

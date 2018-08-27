@@ -260,6 +260,10 @@ namespace yaza
             root.Define("$", exprNodeIP);
             var exprNodeIP2 = new ExprNodeIP(false);
             root.Define("$$", exprNodeIP2);
+            var exprNodeOP = new ExprNodeOFS(true);
+            root.Define("$ofs", exprNodeOP);
+            var exprNodeOP2 = new ExprNodeOFS(false);
+            root.Define("$$ofs", exprNodeOP2);
 
             // Define user specified symboles
             foreach (var kv in _userDefines)
@@ -299,6 +303,8 @@ namespace yaza
             var layoutContext = new LayoutContext();
             exprNodeIP.SetContext(layoutContext);
             exprNodeIP2.SetContext(layoutContext);
+            exprNodeOP.SetContext(layoutContext);
+            exprNodeOP2.SetContext(layoutContext);
             root.Layout(null, layoutContext);
 
             if (Log.ErrorCount == 0)
@@ -308,6 +314,8 @@ namespace yaza
 
                 exprNodeIP.SetContext(generateContext);
                 exprNodeIP2.SetContext(generateContext);
+                exprNodeOP.SetContext(generateContext);
+                exprNodeOP2.SetContext(generateContext);
 
                 if (_listFile != null)
                     generateContext.ListFile = OpenTextWriter(_listFile, "lst");

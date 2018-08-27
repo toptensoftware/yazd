@@ -67,15 +67,39 @@ loop:
 Various numbers formats are supported:
 
 ~~~
-    LD  HL,0F000h       ; 'h' suffix for hex
-    LD  HL,0xF000       ; '0x' prefix for hex
-    LD  HL,$F000        ; '$' prefix for hex
-    LD  HL,&hF000       ; '&h' prefix for hex
-    LD  HL,0b1001       ; '0b' prefix for binary
+    LD  HL,0xFFFF       ; '0x' prefix for hex
+    LD  HL,0n9999       ; '0n' prefix for decimal
+    LD  HL,0t7777       ; '0n' prefix for octal
+    LD  HL,0b1111       ; '0b' prefix for binary
+
+    LD  HL,0FFFFh       ; 'h' suffix for hex
+    LD  HL,9999d        ; 'd' suffix for decimal
+    LD  HL,9999n        ; 'n' suffix for decimal
+    LD  HL,7777o        ; 'o' suffix for octal
+    LD  HL,7777q        ; 'q' suffix for octal
+    LD  HL,7777t        ; 't' suffix for octal
+    LD  HL,1111b        ; 'b' suffix for binary
+
+    LD  HL,$FFFF        ; '$' prefix for hex
+    LD  HL,&hFFFF       ; '&h' prefix for hex
+    LD  HL,&n9999       ; '&n' prefix for decimal
+    LD  HL,&d9999       ; '&n' prefix for decimal
+    LD  HL,&o7777       ; '&o' prefix for decimal
+    LD  HL,&t7777       ; '&t' prefix for decimal
     LD  HL,&b1001       ; '&b' prefix for binary
-    LD  HL,0666         ; '0' prefix for octal
-    LD  HL,0666d        ; 'd' suffix to force decimal
 ~~~
+
+The `RADIX` directive can be used to set the default radix to either 2, 8, 10 or 16.
+
+~~~
+    RADIX 2             ; Select binary radix
+    LD  HL,1000         ; 8
+
+    RADIX 16            ; Select hex radix
+    LD  HL,0F           ; 16
+~~~
+
+Note that when the hex radix is selected, numbers must still start with a digit which might mean introducing a leading `0` (ie: `0ff` not `ff`)
 
 ## Expressions
 
@@ -145,6 +169,9 @@ The seek directive lets you rewind the output position of the generated code to 
 ~~~
     SEEK    0           ; Rewind to the start of the file
 ~~~
+
+The current output position is available through the special variable `$ofs` (as in "offset").
+
 
 Typically used to patch over `incbin`ed data.
 
@@ -234,6 +261,9 @@ levelDataSize EQU $-levelData
 
 The `$$` symbol also refers to the current instruction address, but when used in an EQU it resolves to the location the EQU is being invoked from - not the location where the EQU was originally defined.
 
+
+The `$ofs` symbol refers to the current output position in the generated binary file.  This can be used with the `SEEK` directive to position the output position (typically for patching imported `incbin` data).  When used in EQU definitions, the `$ofs` is bound to the place where the EQU is defined - not where it's referenced from.  The `$$ofs` symbol can be used to refer to the current output position of where the EQU is invoked from.
+
 ## Conditional Compilation
 
 The `if`, `else`, `elseif` and `endif` directives can be used to conditionally include code.
@@ -317,8 +347,8 @@ ZFILL(ptr,len) MACRO
     LDIR
 ENDM
 
-; Invoke Macro to do the fill
-ZFILL(0xF000, 0x400)
+; Invoke Macro (NB: no parentheses to invoke macro)
+ZFILL 0xF000, 0x400
 ~~~
 
 Like parameterized EQU's, macros can be overridden based on the number of arguments.  eg:
@@ -500,3 +530,12 @@ Results in swapped bit order:
 
 
 
+## ERROR and WARNING  directives
+
+The `ERROR` and `WARNING` directives can be used to generate error and warning messages:
+
+```
+    ERROR "I refuse to compile"
+
+    WARNING "This might crash"
+```

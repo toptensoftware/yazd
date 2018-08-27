@@ -109,6 +109,8 @@ namespace yaza
             throw new CodeException($"syntax error: expected '{str}', found '{TokenRaw}'", TokenPosition);
         }
 
+        public int DefaultRadix = 10;
+
 
         public bool TrySkipToken(Token token)
         {
@@ -241,6 +243,20 @@ namespace yaza
             if (_source.SkipI("&b"))
             {
                 _number = Convert.ToInt32(_source.SkipAndExtract(IsBinaryDigit), 2);
+                return Token.Number;
+            }
+
+            // Decimal prefix
+            if (_source.SkipI("&n") || _source.SkipI("&d"))
+            {
+                _number = Convert.ToInt32(_source.SkipAndExtract(IsDigit), 10);
+                return Token.Number;
+            }
+
+            // Octal prefix
+            if (_source.SkipI("&o") || _source.SkipI("&t"))
+            {
+                _number = Convert.ToInt32(_source.SkipAndExtract(IsOctalDigit), 8);
                 return Token.Number;
             }
 
@@ -436,6 +452,20 @@ namespace yaza
                 return Convert.ToInt32(hexNumber, 16);
             }
 
+            // Decimal number
+            if (_source.SkipI("0n"))
+            {
+                var hexNumber = _source.SkipAndExtract(IsHexDigit);
+                return Convert.ToInt32(hexNumber, 10);
+            }
+
+            // Octal
+            if (_source.SkipI("0t"))
+            {
+                var hexNumber = _source.SkipAndExtract(IsHexDigit);
+                return Convert.ToInt32(hexNumber, 8);
+            }
+
             // Hex, decimal, or binary number
             var number = _source.SkipAndExtract(IsHexDigit);
 
@@ -447,23 +477,38 @@ namespace yaza
                     return Convert.ToInt32(number, 16);
                 }
 
+                // Octal suffix
+                if (_source.SkipI('o') || _source.SkipI('q') || _source.SkipI('t'))
+                {
+                    return Convert.ToInt32(number, 8);
+                }
+
+                // Decimal suffix
+                if (_source.SkipI('n'))
+                {
+                    return Convert.ToInt32(number, 10);
+                }
+
                 // Hex number
                 if (number.StartsWith("0b"))
                 {
                     return Convert.ToInt32(number.Substring(2), 2);
                 }
 
+                // Binary suffix
                 if (number.EndsWith("d"))
                 {
-                    return Convert.ToInt32(number.Substring(0, number.Length), 10);
+                    return Convert.ToInt32(number.Substring(0, number.Length - 1), 10);
                 }
 
-                // Octal?
-                if (number[0] == '0')
-                    return Convert.ToInt32(number, 8);
+                // Binary suffix
+                if (number.EndsWith("b"))
+                {
+                    return Convert.ToInt32(number.Substring(0, number.Length - 1), 2);
+                }
 
-                // Assume decimal
-                return Convert.ToInt32(number);
+                // default radix
+                return Convert.ToInt32(number, DefaultRadix);
             }
             catch (Exception)
             {

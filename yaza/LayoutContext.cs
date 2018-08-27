@@ -9,23 +9,23 @@ namespace yaza
     public class LayoutContext
     {
         public int ip { get; private set; }
-        public int? minAddress;
-        public int? maxAddress;
+        public int op { get; private set; }
 
         public void SetOrg(int value)
         {
             ip = value;
         }
 
+        public void Seek(int value)
+        {
+            op = value;
+        }
+
         public void ReserveBytes(int amount)
         {
-            if (!minAddress.HasValue || ip < minAddress.Value)
-                minAddress = ip;
-
             ip += amount;
-
-            if (!maxAddress.HasValue || ip > maxAddress.Value)
-                maxAddress = ip;
+            op += amount;
         }
     }
 }
+

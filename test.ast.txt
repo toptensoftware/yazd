@@ -1,7 +1,25 @@
 - SCOPE global (no file location)
   - CONTAINER test.asm (test.asm 1,1)
-    - DEFBITS '#' = '' (test.asm 2,2)
-    - BITMAP (test.asm 4,2)
-      - literal 8
-      - literal 1
-       '######'
+    - SCOPE MACRO ZFILL (test.asm 1,1)
+      - LD (test.asm 2,5)
+        - reg/cond 'HL'
+        - identifier 'ptr'
+      - LD (test.asm 3,5)
+        - reg/cond 'DE'
+        - operator +
+          - identifier 'ptr'
+          - literal 1
+      - LD (test.asm 4,5)
+        - reg/cond 'BC'
+        - operator +
+          - identifier 'len'
+          - operator -
+            - literal 1
+      - LD (test.asm 5,5)
+        - deref pointer
+          - reg/cond 'HL'
+        - literal 0
+      - LDIR (test.asm 6,5)
+    - ZFILL (test.asm 9,1)
+      - literal 61440
+      - literal 1024
