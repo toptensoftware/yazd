@@ -192,20 +192,23 @@ namespace yaza
 
 
         // Define a symbols value
-        public void Define(string symbol, ISymbolValue value)
+        public void Define(string symbol, ISymbolValue value, bool canReplace = false)
         {
-            // Check not already defined in an outer scope
-            var outerScope = ContainingScope;
-            if (outerScope != null && outerScope.IsSymbolDefined(symbol))
+            if (!canReplace)
             {
-                throw new InvalidOperationException(string.Format("The symbol '{0}' is already defined in an outer scope", symbol));
-            }
+                // Check not already defined in an outer scope
+                var outerScope = ContainingScope;
+                if (outerScope != null && outerScope.IsSymbolDefined(symbol))
+                {
+                    throw new InvalidOperationException(string.Format("The symbol '{0}' is already defined in an outer scope", symbol));
+                }
 
-            // Check if already defined
-            ISymbolValue existing;
-            if (_symbols.TryGetValue(symbol, out existing))
-            {
-                throw new InvalidOperationException(string.Format("Duplicate symbol: '{0}'", symbol));
+                // Check if already defined
+                ISymbolValue existing;
+                if (_symbols.TryGetValue(symbol, out existing))
+                {
+                    throw new InvalidOperationException(string.Format("Duplicate symbol: '{0}'", symbol));
+                }
             }
 
             // Store it
@@ -1041,7 +1044,7 @@ namespace yaza
                 }
             }
 
-            currentScope.Define($"bitpattern'{_character}'", this);
+            currentScope.Define($"bitpattern'{_character}'", this, true);
         }
     }
 

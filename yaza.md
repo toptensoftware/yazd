@@ -439,6 +439,21 @@ Instead of using a string bit pattern in DEFBITS, you can also use a bit width e
     DEFBITS "Z", 4, 3          ; Equivalent to "0010"
 ~~~
 
+Unlike other definitions and symbols, DEFBITS pattern can be redefined:
+
+~~~
+    DEFBITS "X", "10"           ; Original definition
+    BITMAP 8,1
+        "XXXX"
+    ENDB
+
+    DEFBITS "X", "01"           ; New definition
+    BITMAP 8,1
+        "XXXX"
+    ENDB
+~~~
+
+
 Another example:
 
     DEFBITS "#", "1"            ; The # character will represent a one bit
