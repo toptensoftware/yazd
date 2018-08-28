@@ -68,3 +68,7 @@
       - reg/cond 'de'
       - member '.Value2' of:
         - identifier 'BOT'
+    - LD (test.asm 26,2)
+      - reg/cond 'a'
+      - sizeof
+        - identifier 'BOT'

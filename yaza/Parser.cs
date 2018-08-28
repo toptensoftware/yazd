@@ -792,6 +792,15 @@ namespace yaza
                 return node;
             }
 
+            // Sizeof operator?
+            if (_tokenizer.TrySkipIdentifier("sizeof"))
+            {
+                _tokenizer.SkipToken(Token.OpenRound);
+                var node = new ExprNodeSizeOf(pos, ParseExpression());
+                _tokenizer.SkipToken(Token.CloseRound);
+                return node;
+            }
+
             // Identifier
             if (_tokenizer.Token == Token.Identifier)
             {

@@ -23,6 +23,8 @@
 0012: DD 7E 05                  	ld		a,(IX+BOT.Value2)
 0015: 11 05 00                  	ld		de,BOT.Value2
                                 
+0018: 3E 07                     	ld		a,sizeof(BOT)
+                                
                                 
                                 
                                 	; TODO
@@ -31,4 +33,4 @@
                                 	; - data declarations 
                                 	; - support for DUP
 
-0018:
+001A:

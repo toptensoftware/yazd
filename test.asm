@@ -23,6 +23,8 @@ ENDS
 	ld		a,(IX+BOT.Value2)
 	ld		de,BOT.Value2
 
+	ld		a,sizeof(BOT)
+
 
 
 	; TODO

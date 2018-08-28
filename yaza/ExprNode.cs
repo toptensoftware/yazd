@@ -701,6 +701,47 @@ namespace yaza
         }
     }
 
+    public class ExprNodeSizeOf : ExprNode
+    {
+        public ExprNodeSizeOf(SourcePosition pos, ExprNode target)
+            : base(pos)
+        {
+            _target = target;
+        }
+
+        ExprNode _target;
+
+        public override void Dump(TextWriter w, int indent)
+        {
+            w.WriteLine($"{Utils.Indent(indent)}- sizeof");
+            _target.Dump(w, indent + 1);
+        }
+
+
+        public override long EvaluateNumber(AstScope scope)
+        {
+            // Get the LHS (which must be a type or another field definition)
+            var targetVal = _target.Evaluate(scope);
+
+            // Is the target a type declaration
+            var targetType = targetVal as AstType;
+            if (targetType != null)
+                return targetType.SizeOf;
+
+            // Is the target a member
+            var targetField = targetVal as AstFieldDefinition;
+            if (targetField != null)
+                return targetField.Type.SizeOf;
+
+            throw new CodeException($"Invalid use of sizeof operator with '{Utils.TypeName(targetVal)}' parameter", SourcePosition);
+        }
+
+        public override AddressingMode GetAddressingMode(AstScope scope)
+        {
+            return AddressingMode.Immediate;
+        }
+    }
+
     public class ExprNodeRegisterOrFlag : ExprNode
     {
         public ExprNodeRegisterOrFlag(SourcePosition pos, string name)
