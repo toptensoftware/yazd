@@ -1,25 +1,70 @@
 - SCOPE global (no file location)
+  - TYPE: 'BYTE'
+  - TYPE: 'WORD'
   - CONTAINER test.asm (test.asm 1,1)
-    - SCOPE MACRO ZFILL (test.asm 1,1)
-      - LD (test.asm 2,5)
-        - reg/cond 'HL'
-        - identifier 'ptr'
-      - LD (test.asm 3,5)
-        - reg/cond 'DE'
+    - STRUCT: 'COORD' (test.asm 1,1)
+      - FIELD: 'XCoord' DB (test.asm 2,2)
+      - FIELD: 'YCoord' DB (test.asm 3,2)
+      - FIELD: 'YSubCoord' DB (test.asm 4,2)
+    - STRUCT: 'BOT' (test.asm 7,1)
+      - FIELD: 'Value' WORD (test.asm 8,2)
+      - FIELD: 'Coord' COORD (test.asm 9,2)
+      - FIELD: 'Value2' WORD (test.asm 10,2)
+    - LD (test.asm 17,2)
+      - reg/cond 'a'
+      - deref pointer
         - operator +
-          - identifier 'ptr'
+          - reg/cond 'IX'
+          - member '.COORD' of:
+            - identifier 'BOT'
+    - LD (test.asm 18,2)
+      - reg/cond 'a'
+      - deref pointer
+        - operator +
+          - reg/cond 'IX'
+          - member '.XCoord' of:
+            - member '.COORD' of:
+              - identifier 'BOT'
+    - LD (test.asm 19,2)
+      - reg/cond 'a'
+      - deref pointer
+        - operator +
+          - reg/cond 'IX'
+          - member '.YCoord' of:
+            - member '.COORD' of:
+              - identifier 'BOT'
+    - LD (test.asm 20,2)
+      - reg/cond 'a'
+      - deref pointer
+        - operator +
+          - reg/cond 'IX'
+          - member '.YSubCoord' of:
+            - member '.COORD' of:
+              - identifier 'BOT'
+    - LD (test.asm 21,2)
+      - reg/cond 'a'
+      - deref pointer
+        - operator +
+          - reg/cond 'IX'
+          - member '.Value' of:
+            - identifier 'BOT'
+    - LD (test.asm 22,2)
+      - reg/cond 'a'
+      - deref pointer
+        - operator +
+          - operator +
+            - reg/cond 'IX'
+            - member '.Value' of:
+              - identifier 'BOT'
           - literal 1
-      - LD (test.asm 4,5)
-        - reg/cond 'BC'
+    - LD (test.asm 23,2)
+      - reg/cond 'a'
+      - deref pointer
         - operator +
-          - identifier 'len'
-          - operator -
-            - literal 1
-      - LD (test.asm 5,5)
-        - deref pointer
-          - reg/cond 'HL'
-        - literal 0
-      - LDIR (test.asm 6,5)
-    - ZFILL (test.asm 9,1)
-      - literal 61440
-      - literal 1024
+          - reg/cond 'IX'
+          - member '.Value2' of:
+            - identifier 'BOT'
+    - LD (test.asm 24,2)
+      - reg/cond 'de'
+      - member '.Value2' of:
+        - identifier 'BOT'

@@ -246,16 +246,8 @@ namespace yaza
                 return 7;
             }
 
-            // Step 1 - Parse the input file
-            var p = new Parser();
-            p.IncludePaths = _includePaths;
-            var file = p.Parse(_inputFile, System.IO.Path.GetFullPath(_inputFile));
-
-            // Step 2 - Create the root scope and define all symbols
+            // Create the root scope
             var root = new AstScope("global");
-            root.AddElement(file);
-
-            // Define built in symbols
             var exprNodeIP = new ExprNodeIP(true);
             root.Define("$", exprNodeIP);
             var exprNodeIP2 = new ExprNodeIP(false);
@@ -264,8 +256,10 @@ namespace yaza
             root.Define("$ofs", exprNodeOP);
             var exprNodeOP2 = new ExprNodeOFS(false);
             root.Define("$$ofs", exprNodeOP2);
+            root.AddElement(new AstTypeByte());
+            root.AddElement(new AstTypeWord());
 
-            // Define user specified symboles
+            // Define user specified symbols
             foreach (var kv in _userDefines)
             {
                 var defParser = new Parser();
@@ -283,13 +277,18 @@ namespace yaza
                 }
                 else
                 {
-                    root.Define(kv.Key, new ExprNodeLiteral(1));
+                    root.Define(kv.Key, new ExprNodeLiteral(null, 1));
                 }
             }
 
+            // Step 1 - Parse the input file
+            var p = new Parser();
+            p.IncludePaths = _includePaths;
+            var file = p.Parse(_inputFile, System.IO.Path.GetFullPath(_inputFile));
+            root.AddElement(file);
+
             // Run the "Define Symbols" pass
             root.DefineSymbols(null);
-
 
             if (_astFile != null)
             {
@@ -299,7 +298,7 @@ namespace yaza
                 }
             }
 
-            // Step 3 - Map instructions
+            // Step 2 - Layout
             var layoutContext = new LayoutContext();
             exprNodeIP.SetContext(layoutContext);
             exprNodeIP2.SetContext(layoutContext);
@@ -309,7 +308,7 @@ namespace yaza
 
             if (Log.ErrorCount == 0)
             {
-                // Step 4 - Generate Code
+                // Step 3 - Generate
                 var generateContext = new GenerateContext(layoutContext);
 
                 exprNodeIP.SetContext(generateContext);

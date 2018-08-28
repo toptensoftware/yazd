@@ -28,7 +28,7 @@ namespace yaza
             }
         }
 
-        public abstract void Generate(GenerateContext ctx, SourcePosition sourcePosition, int[] immArgs);
+        public abstract void Generate(GenerateContext ctx, SourcePosition sourcePosition, long[] immArgs);
     }
 
     // Represents and instruction group (ie: a set of instructions with variations on an immediate value)
@@ -80,11 +80,11 @@ namespace yaza
             }
         }
 
-        public override void Generate(GenerateContext ctx, SourcePosition sourcePosition, int[] immArgs)
+        public override void Generate(GenerateContext ctx, SourcePosition sourcePosition, long[] immArgs)
         {
             // Find the definition
             InstructionDefinition def;
-            if (!_immVariations.TryGetValue(immArgs[0], out def))
+            if (!_immVariations.TryGetValue((int)immArgs[0], out def))
             {
                 throw new CodeException($"the immediate value 0x{immArgs[0]:X2} isn't a valid value for this instruction");
             }
@@ -138,7 +138,7 @@ namespace yaza
         }
 
         // Prepare this instruction instance
-        public override void Generate(GenerateContext ctx, SourcePosition sourcePosition, int[] immArgs)
+        public override void Generate(GenerateContext ctx, SourcePosition sourcePosition, long[] immArgs)
         {
             var oldIp = ctx.ip;
 
@@ -161,7 +161,7 @@ namespace yaza
                         break;
 
                     case '%':
-                        ctx.EmitRelOffset(sourcePosition, immArgs[arg++]);
+                        ctx.EmitRelOffset(sourcePosition, (int)immArgs[arg++]);
                         break;
 
                     case '#':

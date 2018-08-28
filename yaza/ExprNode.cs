@@ -21,9 +21,7 @@ namespace yaza
 
         Mask = 0x07,
 
-
         /*
-
         DerefImmediate = Deref | Immediate,
         DerefRegister = Deref | Register,
         DerefRegisterPlusImmediate = Deref | RegisterPlusImmediate,
@@ -37,20 +35,43 @@ namespace yaza
 
     public abstract class ExprNode : ISymbolValue
     {
-        // Source position of this expression (only really usd on root expression elements)
-        public SourcePosition SourcePosition;
+        public ExprNode(SourcePosition pos)
+        {
+            SourcePosition = pos;
+        }
+
+        public SourcePosition SourcePosition { get; private set; }
 
         public abstract void Dump(TextWriter w, int indent);
-        public abstract int Evaluate(AstScope scope);
-        public abstract AddressingMode GetAddressingMode(AstScope scope);
+        public virtual long EvaluateNumber(AstScope scope)
+        {
+            // Evaluate 
+            var val = Evaluate(scope);
+
+            // Try to convert to long
+            try
+            {
+                return Convert.ToInt64(val);
+            }
+            catch
+            {
+                throw new CodeException($"Can't convert {Utils.TypeName(val)} to number.");
+            }
+        }
+        public virtual object Evaluate(AstScope scope)
+        {
+            return EvaluateNumber(scope);
+        }
+        public virtual AddressingMode GetAddressingMode(AstScope scope) { return AddressingMode.Invalid; }
         public virtual string GetRegister(AstScope scope) { return null; }
         public virtual string GetSubOp() { throw new InvalidOperationException(); }
-        public virtual int GetImmediateValue(AstScope scope) { return Evaluate(scope); }
+        public virtual long GetImmediateValue(AstScope scope) { return EvaluateNumber(scope); }
     }
 
     public class ExprNodeParameterized : ExprNode
     {
-        public ExprNodeParameterized(string[] parameterNames, ExprNode body)
+        public ExprNodeParameterized(SourcePosition pos, string[] parameterNames, ExprNode body)
+            : base(pos)
         {
             _parameterNames = parameterNames;
             _body = body;
@@ -72,9 +93,9 @@ namespace yaza
         string[] _parameterNames;
         ExprNode _body;
 
-        public ExprNode Resolve(ExprNode[] arguments)
+        public ExprNode Resolve(SourcePosition pos, ExprNode[] arguments)
         {
-            return new ExprNodeParameterizedInstance(_parameterNames, arguments, _body);
+            return new ExprNodeParameterizedInstance(pos, _parameterNames, arguments, _body);
         }
 
         public override void Dump(TextWriter w, int indent)
@@ -83,7 +104,7 @@ namespace yaza
             _body.Dump(w, indent + 1);
         }
 
-        public override int Evaluate(AstScope scope)
+        public override long EvaluateNumber(AstScope scope)
         {
             throw new NotImplementedException();
         }
@@ -93,7 +114,7 @@ namespace yaza
             throw new NotImplementedException();
         }
 
-        public override int GetImmediateValue(AstScope scope)
+        public override long GetImmediateValue(AstScope scope)
         {
             throw new NotImplementedException();
         }
@@ -106,7 +127,8 @@ namespace yaza
 
     public class ExprNodeParameterizedInstance : ExprNode
     {
-        public ExprNodeParameterizedInstance(string[] parameterNames, ExprNode[] arguments, ExprNode body)
+        public ExprNodeParameterizedInstance(SourcePosition pos, string[] parameterNames, ExprNode[] arguments, ExprNode body)
+            : base(pos)
         {
             _scope = new AstScope("parameterized equate");
             for (int i = 0; i < parameterNames.Length; i++)
@@ -125,12 +147,12 @@ namespace yaza
             _body.Dump(w, indent + 1);
         }
 
-        public override int Evaluate(AstScope scope)
+        public override long EvaluateNumber(AstScope scope)
         {
             try
             {
-                _scope.Container= scope;
-                return _body.Evaluate(_scope);
+                _scope.Container = scope;
+                return _body.EvaluateNumber(_scope);
             }
             finally
             {
@@ -151,7 +173,7 @@ namespace yaza
             }
         }
 
-        public override int GetImmediateValue(AstScope scope)
+        public override long GetImmediateValue(AstScope scope)
         {
             try
             {
@@ -182,19 +204,20 @@ namespace yaza
 
     public class ExprNodeLiteral : ExprNode
     {
-        public ExprNodeLiteral(int value)
+        public ExprNodeLiteral(SourcePosition pos, long value)
+            : base(pos)
         {
             _value = value;
         }
 
-        int _value;
+        long _value;
 
         public override void Dump(TextWriter w, int indent)
         {
             w.WriteLine($"{Utils.Indent(indent)}- literal {_value}");
         }
 
-        public override int Evaluate(AstScope scope)
+        public override long EvaluateNumber(AstScope scope)
         {
             return _value;
         }
@@ -207,16 +230,16 @@ namespace yaza
 
     public class ExprNodeDeferredValue : ExprNode
     {
-        public ExprNodeDeferredValue(string name, SourcePosition pos)
+        public ExprNodeDeferredValue(SourcePosition pos, string name)
+            : base(pos)
         {
             _name = name;
-            SourcePosition = pos;
         }
 
-        int? _value;
+        long? _value;
         string _name;
 
-        public void Resolve(int value)
+        public void Resolve(long value)
         {
             _value = value;
         }
@@ -226,7 +249,7 @@ namespace yaza
             w.WriteLine($"{Utils.Indent(indent)}- deferred value: {_value}");
         }
 
-        public override int Evaluate(AstScope scope)
+        public override long EvaluateNumber(AstScope scope)
         {
             if (_value.HasValue)
                 return _value.Value;
@@ -242,12 +265,13 @@ namespace yaza
 
     public class ExprNodeUnary : ExprNode
     {
-        public ExprNodeUnary()
+        public ExprNodeUnary(SourcePosition pos)
+            : base(pos)
         {
         }
 
         public string OpName;
-        public Func<int, int> Operator;
+        public Func<long, long> Operator;
         public ExprNode RHS;
 
         public override void Dump(TextWriter w, int indent)
@@ -256,9 +280,9 @@ namespace yaza
             RHS.Dump(w, indent + 1);
         }
 
-        public override int Evaluate(AstScope scope)
+        public override long EvaluateNumber(AstScope scope)
         {
-            return Operator(RHS.Evaluate(scope));
+            return Operator(RHS.EvaluateNumber(scope));
         }
 
         public override AddressingMode GetAddressingMode(AstScope scope)
@@ -269,17 +293,17 @@ namespace yaza
                 return AddressingMode.Invalid;
         }
 
-        public static int OpLogicalNot(int val)
+        public static long OpLogicalNot(long val)
         {
             return val == 0 ? 1 : 0;
         }
 
-        public static int OpBitwiseComplement(int val)
+        public static long OpBitwiseComplement(long val)
         {
             return ~val;
         }
 
-        public static int OpNegate(int val)
+        public static long OpNegate(long val)
         {
             return -val;
         }
@@ -288,12 +312,13 @@ namespace yaza
 
     public class ExprNodeBinary : ExprNode
     {
-        public ExprNodeBinary()
+        public ExprNodeBinary(SourcePosition pos)
+            : base(pos)
         {
         }
 
         public string OpName;
-        public Func<int, int, int> Operator;
+        public Func<long, long, long> Operator;
         public ExprNode LHS;
         public ExprNode RHS;
 
@@ -304,9 +329,9 @@ namespace yaza
             RHS.Dump(w, indent + 1);
         }
 
-        public override int Evaluate(AstScope scope)
+        public override long EvaluateNumber(AstScope scope)
         {
-            return Operator(LHS.Evaluate(scope), RHS.Evaluate(scope));
+            return Operator(LHS.EvaluateNumber(scope), RHS.EvaluateNumber(scope));
         }
 
         public override AddressingMode GetAddressingMode(AstScope scope)
@@ -317,87 +342,87 @@ namespace yaza
                 return AddressingMode.Invalid;
         }
 
-        public static int OpMul(int a, int b)
+        public static long OpMul(long a, long b)
         {
             return a * b;
         }
 
-        public static int OpDiv(int a, int b)
+        public static long OpDiv(long a, long b)
         {
             return a / b;
         }
 
-        public static int OpMod(int a, int b)
+        public static long OpMod(long a, long b)
         {
             return a % b;
         }
 
-        public static int OpAdd(int a, int b)
+        public static long OpAdd(long a, long b)
         {
             return a + b;
         }
 
-        public static int OpLogicalAnd(int a, int b)
+        public static long OpLogicalAnd(long a, long b)
         {
             return (a != 0 && b != 0) ? 1 : 0;
         }
 
-        public static int OpLogicalOr(int a, int b)
+        public static long OpLogicalOr(long a, long b)
         {
             return (a != 0 || b != 0) ? 1 : 0;
         }
 
-        public static int OpBitwiseAnd(int a, int b)
+        public static long OpBitwiseAnd(long a, long b)
         {
             return a & b;
         }
 
-        public static int OpBitwiseOr(int a, int b)
+        public static long OpBitwiseOr(long a, long b)
         {
             return a | b;
         }
 
-        public static int OpBitwiseXor(int a, int b)
+        public static long OpBitwiseXor(long a, long b)
         {
             return a ^ b;
         }
 
-        public static int OpShl(int a, int b)
+        public static long OpShl(long a, long b)
         {
-            return a << b;
+            return a << (int)b;
         }
 
-        public static int OpShr(int a, int b)
+        public static long OpShr(long a, long b)
         {
-            return a >> b;
+            return a >> (int)b;
         }
 
-        public static int OpEQ(int a, int b)
+        public static long OpEQ(long a, long b)
         {
             return a == b ? 1 : 0;
         }
 
-        public static int OpNE(int a, int b)
+        public static long OpNE(long a, long b)
         {
             return a != b ? 1 : 0;
         }
 
-        public static int OpGT(int a, int b)
+        public static long OpGT(long a, long b)
         {
             return a > b ? 1 : 0;
         }
 
-        public static int OpLT(int a, int b)
+        public static long OpLT(long a, long b)
         {
             return a < b ? 1 : 0;
         }
 
-        public static int OpGE(int a, int b)
+        public static long OpGE(long a, long b)
         {
             return a >= b ? 1 : 0;
         }
 
-        public static int OpLE(int a, int b)
+        public static long OpLE(long a, long b)
         {
             return a <= b ? 1 : 0;
         }
@@ -405,7 +430,8 @@ namespace yaza
 
     public class ExprNodeAdd : ExprNodeBinary
     {
-        public ExprNodeAdd()
+        public ExprNodeAdd(SourcePosition pos)
+            : base(pos)
         {
             OpName = "+";
             Operator = ExprNodeBinary.OpAdd;
@@ -434,12 +460,12 @@ namespace yaza
             return AddressingMode.Invalid;
         }
 
-        public override int GetImmediateValue(AstScope scope)
+        public override long GetImmediateValue(AstScope scope)
         {
             var lhsMode = LHS.GetAddressingMode(scope);
             var rhsMode = RHS.GetAddressingMode(scope);
 
-            int val = 0;
+            long val = 0;
             if ((lhsMode & AddressingMode.Immediate) != 0)
                 val += LHS.GetImmediateValue(scope);
             if ((rhsMode & AddressingMode.Immediate) != 0)
@@ -457,7 +483,8 @@ namespace yaza
 
     public class ExprNodeTernery : ExprNode
     {
-        public ExprNodeTernery()
+        public ExprNodeTernery(SourcePosition pos)
+            : base(pos)
         {
         }
 
@@ -476,15 +503,15 @@ namespace yaza
             FalseValue.Dump(w, indent + 2);
         }
 
-        public override int Evaluate(AstScope scope)
+        public override long EvaluateNumber(AstScope scope)
         {
-            if (Condition.Evaluate(scope) != 0)
+            if (Condition.EvaluateNumber(scope) != 0)
             {
-                return TrueValue.Evaluate(scope);
+                return TrueValue.EvaluateNumber(scope);
             }
             else
             {
-                return FalseValue.Evaluate(scope);
+                return FalseValue.EvaluateNumber(scope);
             }
         }
 
@@ -500,10 +527,10 @@ namespace yaza
 
     public class ExprNodeIdentifier : ExprNode
     {
-        public ExprNodeIdentifier(SourcePosition position, string name)
+        public ExprNodeIdentifier(SourcePosition pos, string name)
+            : base(pos)
         {
             _name = name;
-            SourcePosition = position;
         }
 
         string _name;
@@ -515,7 +542,7 @@ namespace yaza
             w.WriteLine($"{Utils.Indent(indent)}- identifier '{_name}'");
             if (Arguments != null)
             {
-                w.WriteLine($"{Utils.Indent(indent+1)}- args");
+                w.WriteLine($"{Utils.Indent(indent + 1)}- args");
                 foreach (var a in Arguments)
                 {
                     a.Dump(w, indent + 2);
@@ -528,12 +555,17 @@ namespace yaza
             if (Arguments == null)
             {
                 // Simple symbol
-                var symbol = scope.FindSymbol(_name) as ExprNode;
+                var symbol = scope.FindSymbol(_name);
                 if (symbol == null)
                 {
                     throw new CodeException($"Unrecognized symbol: '{_name}'", SourcePosition);
                 }
-                return symbol;
+                var expr = symbol as ExprNode;
+                if (expr == null)
+                {
+                    throw new CodeException($"Invalid expression: '{_name}' is not a value", SourcePosition);
+                }
+                return expr;
             }
             else
             {
@@ -545,13 +577,29 @@ namespace yaza
                 }
 
                 // Resolve it
-                return symbol.Resolve(Arguments);
+                return symbol.Resolve(SourcePosition, Arguments);
             }
         }
 
-        public override int Evaluate(AstScope scope)
+        public override object Evaluate(AstScope scope)
         {
-            return FindSymbol(scope).Evaluate(scope);
+            if (Arguments == null)
+            {
+                // Simple symbol
+                var symbol = scope.FindSymbol(_name);
+                if (symbol == null)
+                {
+                    throw new CodeException($"Unrecognized symbol: '{_name}'", SourcePosition);
+                }
+                return symbol;
+            }
+
+            return base.Evaluate(scope);
+        }
+
+        public override long EvaluateNumber(AstScope scope)
+        {
+            return FindSymbol(scope).EvaluateNumber(scope);
         }
 
         public override AddressingMode GetAddressingMode(AstScope scope)
@@ -559,7 +607,7 @@ namespace yaza
             return FindSymbol(scope).GetAddressingMode(scope);
         }
 
-        public override int GetImmediateValue(AstScope scope)
+        public override long GetImmediateValue(AstScope scope)
         {
             return FindSymbol(scope).GetImmediateValue(scope);
         }
@@ -570,12 +618,95 @@ namespace yaza
         }
     }
 
+    public class ExprNodeMember : ExprNode
+    {
+        public ExprNodeMember(SourcePosition pos, string name, ExprNode lhs)
+            : base(pos)
+        {
+            _lhs = lhs;
+            _name = name;
+        }
+
+        ExprNode _lhs;
+        string _name;
+
+        public override void Dump(TextWriter w, int indent)
+        {
+            w.WriteLine($"{Utils.Indent(indent)}- member '.{_name}' of:");
+            _lhs.Dump(w, indent + 1);
+        }
+
+        public override object Evaluate(AstScope scope)
+        {
+            // Get the LHS (which must be a type)
+            var lhsVal = _lhs.Evaluate(scope);
+            var type = lhsVal as AstType;
+            if (type == null)
+            {
+                var fd = lhsVal as AstFieldDefinition;
+                if (fd != null)
+                {
+                    type = fd.Type;
+                }
+                else
+                {
+                    throw new CodeException($"LHS of member operator '.{_name}' is not a type or field ", SourcePosition);
+                }
+            }
+
+            // Get the field definition
+            var fieldDefinition = type.FindField(_name);
+            if (fieldDefinition == null)
+                throw new CodeException($"The type '{type.Name}' does not contain a field named '{_name}'", SourcePosition);
+
+            // Return the field definition
+            return fieldDefinition;
+        }
+
+        public override long EvaluateNumber(AstScope scope)
+        {
+            // Get the LHS (which must be a type or another field definition)
+            var lhsVal = _lhs.Evaluate(scope);
+
+            // Direct member of a type?
+            var lhsType = lhsVal as AstType;
+            if (lhsType != null)
+            {
+                // Get the field
+                var fieldDefinition = lhsType.FindField(_name);
+                if (fieldDefinition == null)
+                    throw new CodeException($"The type '{lhsType.Name}' does not contain a field named '{_name}'", SourcePosition);
+
+                // Return the field's offset
+                return fieldDefinition.Offset;
+            }
+
+            // Member of member?
+            var lhsMember = lhsVal as AstFieldDefinition;
+            if (lhsMember != null)
+            {
+                var fieldDefinition = lhsMember.Type.FindField(_name);
+                if (fieldDefinition == null)
+                    throw new CodeException($"The type '{lhsMember.Type.Name}' does not contain a field named '{_name}'", SourcePosition);
+
+                return _lhs.EvaluateNumber(scope) + fieldDefinition.Offset;
+            }
+
+            throw new CodeException($"LHS of member operator '.{_name}' is not a type or field ", SourcePosition);
+        }
+
+        public override AddressingMode GetAddressingMode(AstScope scope)
+        {
+            return AddressingMode.Immediate;
+        }
+    }
+
     public class ExprNodeRegisterOrFlag : ExprNode
     {
-        public ExprNodeRegisterOrFlag(SourcePosition position, string name)
+        public ExprNodeRegisterOrFlag(SourcePosition pos, string name)
+            : base(pos)
         {
             _name = name;
-            SourcePosition = position;
         }
 
         string _name;
@@ -585,7 +716,7 @@ namespace yaza
             w.WriteLine($"{Utils.Indent(indent)}- reg/cond '{_name}'");
         }
 
-        public override int Evaluate(AstScope scope)
+        public override long EvaluateNumber(AstScope scope)
         {
             throw new CodeException("'{_name}' can't be evaluated at compile time", SourcePosition);
         }
@@ -603,9 +734,9 @@ namespace yaza
 
     public class ExprNodeDeref : ExprNode
     {
-        public ExprNodeDeref(SourcePosition position)
+        public ExprNodeDeref(SourcePosition pos)
+            : base(pos)
         {
-            SourcePosition = position;
         }
 
         public ExprNode Pointer;
@@ -616,7 +747,7 @@ namespace yaza
             Pointer.Dump(w, indent + 1);
         }
 
-        public override int Evaluate(AstScope scope)
+        public override long EvaluateNumber(AstScope scope)
         {
             throw new CodeException("pointer dereference operator can't be evaluated at compile time", SourcePosition);
         }
@@ -636,7 +767,7 @@ namespace yaza
             return Pointer.GetRegister(scope);
         }
 
-        public override int GetImmediateValue(AstScope scope)
+        public override long GetImmediateValue(AstScope scope)
         {
             return Pointer.GetImmediateValue(scope);
         }
@@ -645,6 +776,7 @@ namespace yaza
     public class ExprNodeIP : ExprNode
     {
         public ExprNodeIP(bool allowOverride)
+            : base(null)
         {
             _allowOverride = allowOverride;
         }
@@ -670,7 +802,7 @@ namespace yaza
             w.WriteLine($"{Utils.Indent(indent)}- ip '$' pointer");
         }
 
-        public override int Evaluate(AstScope scope)
+        public override long EvaluateNumber(AstScope scope)
         {
             // Temporarily overridden? (See ExprNodeEquWrapper)
             if (_allowOverride && scope.ipOverride.HasValue)
@@ -693,7 +825,7 @@ namespace yaza
             return AddressingMode.Immediate;
         }
 
-        public override int GetImmediateValue(AstScope scope)
+        public override long GetImmediateValue(AstScope scope)
         {
             // Temporarily overridden? (See ExprNodeEquWrapper)
             if (_allowOverride && scope.ipOverride.HasValue)
@@ -706,6 +838,7 @@ namespace yaza
     public class ExprNodeOFS : ExprNode
     {
         public ExprNodeOFS(bool allowOverride)
+            : base(null)
         {
             _allowOverride = allowOverride;
         }
@@ -731,7 +864,7 @@ namespace yaza
             w.WriteLine($"{Utils.Indent(indent)}- ofs '$ofs' pointer");
         }
 
-        public override int Evaluate(AstScope scope)
+        public override long EvaluateNumber(AstScope scope)
         {
             // Temporarily overridden? (See ExprNodeEquWrapper)
             if (_allowOverride && scope.opOverride.HasValue)
@@ -754,7 +887,7 @@ namespace yaza
             return AddressingMode.Immediate;
         }
 
-        public override int GetImmediateValue(AstScope scope)
+        public override long GetImmediateValue(AstScope scope)
         {
             // Temporarily overridden? (See ExprNodeEquWrapper)
             if (_allowOverride && scope.opOverride.HasValue)
@@ -767,7 +900,8 @@ namespace yaza
     // Represents a "sub op" operand.  eg: the "RES " part of "LD A,RES 0,(IX+1)"
     public class ExprNodeSubOp : ExprNode
     {
-        public ExprNodeSubOp(string subop)
+        public ExprNodeSubOp(SourcePosition pos, string subop)
+            : base(pos)
         {
             _subop = subop;
         }
@@ -782,7 +916,7 @@ namespace yaza
             RHS.Dump(w, indent + 1);
         }
 
-        public override int Evaluate(AstScope scope)
+        public override long EvaluateNumber(AstScope scope)
         {
             throw new CodeException("sub-op operator can't be evaluated at compile time", SourcePosition);
         }
@@ -797,7 +931,7 @@ namespace yaza
             return RHS.GetRegister(scope);
         }
 
-        public override int GetImmediateValue(AstScope scope)
+        public override long GetImmediateValue(AstScope scope)
         {
             return RHS.GetImmediateValue(scope);
         }
@@ -815,12 +949,12 @@ namespace yaza
     // it was invoked from.  See also ExprNodeIP
     public class ExprNodeEquWrapper : ExprNode
     {
-        public ExprNodeEquWrapper(ExprNode rhs, string name, SourcePosition position)
+        public ExprNodeEquWrapper(SourcePosition pos, ExprNode rhs, string name)
+            : base(pos)
         {
             _rhs = rhs;
             _ipOverride = 0;
             _name = name;
-            _position = position;
         }
 
         public void SetOverrides(int ipOverride, int opOverride)
@@ -833,14 +967,13 @@ namespace yaza
         int _ipOverride;
         int _opOverride;
         string _name;
-        SourcePosition _position;
         bool _recursionCheck;
 
         void CheckForRecursion()
         {
             if (_recursionCheck)
             {
-                throw new CodeException($"Recursive symbol reference: {_name}", _position);
+                throw new CodeException($"Recursive symbol reference: {_name}", SourcePosition);
             }
         }
 
@@ -850,7 +983,7 @@ namespace yaza
             _rhs.Dump(w, indent + 1);
         }
 
-        public override int Evaluate(AstScope scope)
+        public override long EvaluateNumber(AstScope scope)
         {
             CheckForRecursion();
 
@@ -861,7 +994,7 @@ namespace yaza
             {
                 scope.ipOverride = _ipOverride;
                 scope.opOverride = _opOverride;
-                return _rhs.Evaluate(scope);
+                return _rhs.EvaluateNumber(scope);
             }
             finally
             {
@@ -892,7 +1025,7 @@ namespace yaza
         {
             return _rhs.GetSubOp();
         }
-        public override int GetImmediateValue(AstScope scope)
+        public override long GetImmediateValue(AstScope scope)
         {
             CheckForRecursion();
 
@@ -921,7 +1054,8 @@ namespace yaza
     // it was invoked from.  See also ExprNodeIP
     public class ExprNodeIsDefined : ExprNode
     {
-        public ExprNodeIsDefined(string symbolName)
+        public ExprNodeIsDefined(SourcePosition pos, string symbolName)
+            : base(pos)
         {
             _symbolName = symbolName;
         }
@@ -933,7 +1067,7 @@ namespace yaza
             w.WriteLine($"{Utils.Indent(indent)}- defined({_symbolName})");
         }
 
-        public override int Evaluate(AstScope scope)
+        public override long EvaluateNumber(AstScope scope)
         {
             if (scope.IsSymbolDefined(_symbolName, true))
                 return 1;
@@ -952,10 +1086,99 @@ namespace yaza
         {
             return null;
         }
-        public override int GetImmediateValue(AstScope scope)
+        public override long GetImmediateValue(AstScope scope)
         {
-            return Evaluate(scope);
+            return EvaluateNumber(scope);
         }
     }
 
+    // Represents an array of values [a,b,c]
+    public class ExprNodeArray : ExprNode
+    {
+        public ExprNodeArray(SourcePosition pos)
+            : base(pos)
+        {
+        }
+
+        public void AddElement(ExprNode elem)
+        {
+            _elements.Add(elem);
+        }
+
+        List<ExprNode> _elements = new List<ExprNode>();
+
+        public override void Dump(TextWriter w, int indent)
+        {
+            w.WriteLine($"{Utils.Indent(indent)}- array");
+            foreach (var e in _elements)
+            {
+                e.Dump(w, indent + 1);
+            }
+        }
+
+        public override object Evaluate(AstScope scope)
+        {
+            return _elements.Select(x => x.Evaluate(scope)).ToArray();
+        }
+    }
+
+    // Represents a map of values { x: a, y: b }
+    public class ExprNodeMap : ExprNode
+    {
+        public ExprNodeMap(SourcePosition pos)
+            : base(pos)
+        {
+        }
+
+        public void AddEntry(string name, ExprNode value)
+        {
+            _entries.Add(name, value);
+        }
+
+        public bool ContainsEntry(string name)
+        {
+            return _entries.ContainsKey(name);
+        }
+
+        Dictionary<string, ExprNode> _entries = new Dictionary<string, ExprNode>(StringComparer.InvariantCultureIgnoreCase);
+
+        public override void Dump(TextWriter w, int indent)
+        {
+            w.WriteLine($"{Utils.Indent(indent)}- array");
+            foreach (var e in _entries)
+            {
+                w.WriteLine($"{Utils.Indent(indent + 1)}- \"{e.Key}\"");
+                e.Value.Dump(w, indent + 2);
+            }
+        }
+    }
+
+    // Uninitialized data node ie: '?'
+    public class ExprNodeUninitialized : ExprNode
+    {
+        public ExprNodeUninitialized(SourcePosition pos)
+            : base(pos)
+        {
+        }
+
+        public override void Dump(TextWriter w, int indent)
+        {
+            w.WriteLine($"{Utils.Indent(indent)}- uninitialized data '?'");
+        }
+
+        public override object Evaluate(AstScope scope)
+        {
+            return this;        // as good as anything, just need a marker
+        }
+    }
+
+    /*
+    public class ExprNodeDataDeclaration : ExprNode
+    {
+        public ExprNodeDataDeclaration(SourcePosition pos)
+            : base(pos)
+        {
+        }
+    }
+    */
 }

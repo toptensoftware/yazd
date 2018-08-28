@@ -287,7 +287,7 @@ namespace yaza
                             throw new CodeException("Invalid radix - must be 2, 8, 10, or 16", _tokenizer.TokenPosition);
                     }
 
-                    _tokenizer.DefaultRadix = _tokenizer.TokenNumber;
+                    _tokenizer.DefaultRadix = (int)_tokenizer.TokenNumber;
                     _tokenizer.Next();
                     return null;
                 }
@@ -394,73 +394,103 @@ namespace yaza
                 var pos = _tokenizer.TokenPosition;
                 var name = _tokenizer.TokenString;
                 _tokenizer.Next();
-
-                // Label?
-                if (_tokenizer.TrySkipToken(Token.Colon))
-                {
-                    if (IsReservedWord(name))
-                    {
-                        throw new CodeException($"Illegal use of reserved word as a name: '{name}'", pos);
-                    }
-
-                    // Label
-                    return new AstLabel(name, pos);
-                }
+                string[] paramNames = null;
 
                 // Parameterized EQU?
                 if (_tokenizer.Token == Token.OpenRound && !IsReservedWord(name))
                 {
-                    var names = ParseParameterNames();
-
-                    if (_tokenizer.TrySkipIdentifier("EQU"))
-                    {
-                        return new AstEquate(name, ParseOperandExpression(), pos)
-                        {
-                            ParameterNames = names,
-                        };
-                    }
-
-                    if (_tokenizer.TrySkipIdentifier("MACRO"))
-                    {
-                        _tokenizer.SkipToken(Token.EOL);
-
-                        var macro = new AstMacroDefinition(name, names);
-                        ParseIntoContainer(macro);
-
-                        _tokenizer.SkipIdentifier("ENDM");
-
-                        return macro;
-                    }
-
+                    paramNames = ParseParameterNames();
                 }
 
-                // EQUATE?
+                // Followed by colon?
+                bool haveColon = false;
+                if (_tokenizer.TrySkipToken(Token.Colon))
+                {
+                    haveColon = true;
+                }
+
+                // EQU?
                 if (_tokenizer.TrySkipIdentifier("EQU"))
                 {
-                    if (IsReservedWord(name))
+                    return new AstEquate(name, ParseOperandExpression(), pos)
                     {
-                        throw new CodeException($"Illegal use of reserved word as a name: '{name}'", pos);
-                    }
-
-                    return new AstEquate(name, ParseOperandExpression(), pos);
+                        ParameterNames = paramNames,
+                    };
                 }
 
-                // MACRO definition?
+                // MACRO?
                 if (_tokenizer.TrySkipIdentifier("MACRO"))
                 {
-                    if (IsReservedWord(name))
-                    {
-                        throw new CodeException($"Illegal use of reserved word as a name: '{name}'", pos);
-                    }
-
                     _tokenizer.SkipToken(Token.EOL);
 
-                    var macro = new AstMacroDefinition(name, null);
+                    var macro = new AstMacroDefinition(name, paramNames);
                     ParseIntoContainer(macro);
 
                     _tokenizer.SkipIdentifier("ENDM");
 
                     return macro;
+                }
+
+                // STRUCT?
+                if (_tokenizer.TrySkipIdentifier("STRUCT"))
+                {
+                    var structDef = new AstStructDefinition(name);
+
+                    // Process field definitions
+                    while (_tokenizer.Token != Token.EOF)
+                    {
+                        // Skip blank lines
+                        if (_tokenizer.TrySkipToken(Token.EOL))
+                            continue;
+
+                        // End of struct
+                        if (_tokenizer.TrySkipIdentifier("ENDS"))
+                            break;
+
+                        // Capture the field name (or could be type name)
+                        var fieldDefPos = _tokenizer.TokenPosition;
+                        _tokenizer.CheckToken(Token.Identifier);
+                        var fieldName = _tokenizer.TokenString;
+
+                        // Next token
+                        _tokenizer.Next();
+
+                        // No field name?  eg: "DB ?"
+                        if (_tokenizer.Token == Token.Question)
+                        {
+                            structDef.AddField(new AstFieldDefinition(fieldDefPos, null, fieldName));
+                            _tokenizer.SkipToken(Token.Question);
+                            _tokenizer.SkipToken(Token.EOL);
+                            continue;
+                        }
+
+                        // Must be an identifier (for the type name)
+                        _tokenizer.CheckToken(Token.Identifier);
+                        var fieldType = _tokenizer.TokenString;
+                        _tokenizer.Next();
+
+                        // Add the field definition
+                        structDef.AddField(new AstFieldDefinition(fieldDefPos, fieldName, fieldType));
+
+                        _tokenizer.SkipToken(Token.Question);
+                        _tokenizer.SkipToken(Token.EOL);
+                    }
+
+                    _tokenizer.SkipToken(Token.EOL);
+                    return structDef;
+                }
+
+                // Nothing from here on expected parameters
+                if (paramNames != null)
+                    throw new CodeException("Unexpected parameter list in label", pos);
+
+                // Was it a label?
+                if (haveColon)
+                {
+                    if (IsReservedWord(name))
+                        throw new CodeException($"Unexpected colon after reserved word '{name}'", pos);
+
+                    return new AstLabel(name, pos);
                 }
 
                 // Is it an instruction?
@@ -588,14 +618,14 @@ namespace yaza
                     {
                         foreach (var b in Encoding.UTF8.GetBytes(_tokenizer.TokenString))
                         {
-                            elem.AddValue(new ExprNodeLiteral(b));
+                            elem.AddValue(new ExprNodeLiteral(_tokenizer.TokenPosition, b));
                         }
                     }
                     else
                     {
                         foreach (var ch in _tokenizer.TokenString)
                         {
-                            elem.AddValue(new ExprNodeLiteral(ch));
+                            elem.AddValue(new ExprNodeLiteral(_tokenizer.TokenPosition, ch));
                         }
                     }
                     _tokenizer.Next();
@@ -653,12 +683,85 @@ namespace yaza
             }
         }
 
+        ExprNode ParseArray()
+        {
+            var array = new ExprNodeArray(_tokenizer.TokenPosition);
+            _tokenizer.SkipToken(Token.OpenSquare);
+
+            _tokenizer.SkipWhitespace();
+
+            while (_tokenizer.Token != Token.EOF && _tokenizer.Token != Token.CloseSquare)
+            {
+                array.AddElement(ParseExpression());
+                if (_tokenizer.TrySkipToken(Token.Comma))
+                {
+                    _tokenizer.SkipWhitespace();
+                    continue;
+                }
+
+                break;
+            }
+
+            _tokenizer.SkipWhitespace();
+            _tokenizer.SkipToken(Token.CloseSquare);
+
+            return array;
+        }
+
+        ExprNode ParseMap()
+        {
+            var map = new ExprNodeMap(_tokenizer.TokenPosition);
+            _tokenizer.SkipToken(Token.OpenBrace);
+
+            _tokenizer.SkipWhitespace();
+
+            while (_tokenizer.Token != Token.EOF && _tokenizer.Token != Token.CloseBrace)
+            {
+                _tokenizer.SkipWhitespace();
+
+                // Get the token name
+                _tokenizer.CheckToken(Token.Identifier);
+                var name = _tokenizer.TokenString;
+                if (IsReservedWord(name))
+                    throw new CodeException($"Illegal use of reserved word '{name}'", _tokenizer.TokenPosition);
+                if (map.ContainsEntry(name))
+                    throw new CodeException($"Duplicate key: '{name}'", _tokenizer.TokenPosition);
+                _tokenizer.Next();
+
+                // Skip the colon
+                _tokenizer.SkipToken(Token.Colon);
+
+                // Parse the value
+                var value = ParseExpression();
+
+                // Add it
+                map.AddEntry(name, value);
+
+                // Another value?
+                if (_tokenizer.TrySkipToken(Token.Comma))
+                {
+                    _tokenizer.SkipWhitespace();
+                    continue;
+                }
+
+                break;
+            }
+
+            _tokenizer.SkipWhitespace();
+            _tokenizer.SkipToken(Token.CloseBrace);
+
+            return map;
+        }
+
+
         ExprNode ParseLeaf()
         {
+            var pos = _tokenizer.TokenPosition;
+
             // Number literal?
             if (_tokenizer.Token == Token.Number)
             {
-                var node = new ExprNodeLiteral(_tokenizer.TokenNumber);
+                var node = new ExprNodeLiteral(pos, _tokenizer.TokenNumber);
                 _tokenizer.Next();
                 return node;
             }
@@ -674,7 +777,7 @@ namespace yaza
 
                 _tokenizer.Next();
 
-                return new ExprNodeLiteral(str[0]);
+                return new ExprNodeLiteral(pos, str[0]);
             }
 
 
@@ -683,7 +786,7 @@ namespace yaza
             {
                 _tokenizer.SkipToken(Token.OpenRound);
                 _tokenizer.CheckToken(Token.Identifier);
-                var node = new ExprNodeIsDefined(_tokenizer.TokenString);
+                var node = new ExprNodeIsDefined(pos, _tokenizer.TokenString);
                 _tokenizer.Next();
                 _tokenizer.SkipToken(Token.CloseRound);
                 return node;
@@ -696,14 +799,26 @@ namespace yaza
                 if (InstructionSet.IsConditionFlag(_tokenizer.TokenString) ||
                     InstructionSet.IsValidRegister(_tokenizer.TokenString))
                 {
-                    var node = new ExprNodeRegisterOrFlag(_tokenizer.TokenPosition, _tokenizer.TokenString);
+                    var node = new ExprNodeRegisterOrFlag(pos, _tokenizer.TokenString);
                     _tokenizer.Next();
                     return node;
                 }
                 else
                 {
-                    var node = new ExprNodeIdentifier(_tokenizer.TokenPosition, _tokenizer.TokenString);
+                    var node = new ExprNodeIdentifier(pos, _tokenizer.TokenString);
                     _tokenizer.Next();
+
+                    if (_tokenizer.Token == Token.Period)
+                    {
+                        ExprNode retNode = node;
+                        while (_tokenizer.TrySkipToken(Token.Period))
+                        {
+                            _tokenizer.CheckToken(Token.Identifier);
+                            retNode = new ExprNodeMember(_tokenizer.TokenPosition, _tokenizer.TokenString, retNode);
+                            _tokenizer.Next();
+                        }
+                        return retNode;
+                    }
 
                     if (_tokenizer.Token == Token.OpenRound)
                     {
@@ -722,15 +837,23 @@ namespace yaza
                 return node;
             }
 
+            // Array?
+            if (_tokenizer.Token == Token.OpenSquare)
+                return ParseArray();
+
+            // Map?
+            if (_tokenizer.Token == Token.OpenBrace)
+                return ParseMap();
 
             throw new CodeException($"syntax error in expression: '{Tokenizer.DescribeToken(_tokenizer.Token)}'", _tokenizer.TokenPosition);
         }
 
         ExprNode ParseUnary()
         {
+            var pos = _tokenizer.TokenPosition;
             if (_tokenizer.TrySkipToken(Token.BitwiseComplement))
             {
-                return new ExprNodeUnary()
+                return new ExprNodeUnary(pos)
                 {
                     OpName = "~",
                     Operator = ExprNodeUnary.OpBitwiseComplement,
@@ -740,7 +863,7 @@ namespace yaza
 
             if (_tokenizer.TrySkipToken(Token.LogicalNot))
             {
-                return new ExprNodeUnary()
+                return new ExprNodeUnary(pos)
                 {
                     OpName = "!",
                     Operator = ExprNodeUnary.OpLogicalNot,
@@ -750,7 +873,7 @@ namespace yaza
 
             if (_tokenizer.TrySkipToken(Token.Minus))
             {
-                return new ExprNodeUnary()
+                return new ExprNodeUnary(pos)
                 {
                     OpName = "-",
                     Operator = ExprNodeUnary.OpNegate,
@@ -762,6 +885,7 @@ namespace yaza
             {
                 return ParseUnary();
             }
+            
 
             // Parse leaf node
             return ParseLeaf();
@@ -773,9 +897,10 @@ namespace yaza
 
             while (true)
             {
+                var pos = _tokenizer.TokenPosition;
                 if (_tokenizer.TrySkipToken(Token.Multiply))
                 {
-                    LHS = new ExprNodeBinary()
+                    LHS = new ExprNodeBinary(pos)
                     {
                         LHS = LHS,
                         RHS = ParseUnary(),
@@ -785,7 +910,7 @@ namespace yaza
                 }
                 else if (_tokenizer.TrySkipToken(Token.Divide))
                 {
-                    LHS = new ExprNodeBinary()
+                    LHS = new ExprNodeBinary(pos)
                     {
                         LHS = LHS,
                         RHS = ParseUnary(),
@@ -795,7 +920,7 @@ namespace yaza
                 }
                 else if (_tokenizer.TrySkipToken(Token.Modulus))
                 {
-                    LHS = new ExprNodeBinary()
+                    LHS = new ExprNodeBinary(pos)
                     {
                         LHS = LHS,
                         RHS = ParseUnary(),
@@ -814,9 +939,10 @@ namespace yaza
 
             while (true)
             {
+                var pos = _tokenizer.TokenPosition;
                 if (_tokenizer.TrySkipToken(Token.Plus))
                 {
-                    LHS = new ExprNodeAdd()
+                    LHS = new ExprNodeAdd(pos)
                     {
                         LHS = LHS,
                         RHS = ParseMultiply(),
@@ -824,10 +950,10 @@ namespace yaza
                 }
                 else if (_tokenizer.TrySkipToken(Token.Minus))
                 {
-                    LHS = new ExprNodeAdd()
+                    LHS = new ExprNodeAdd(pos)
                     {
                         LHS = LHS,
-                        RHS = new ExprNodeUnary()
+                        RHS = new ExprNodeUnary(pos)
                         {
                             RHS = ParseMultiply(),
                             OpName = "-",
@@ -883,9 +1009,10 @@ namespace yaza
 
             while (true)
             {
+                var pos = _tokenizer.TokenPosition;
                 if (_tokenizer.TrySkipToken(Token.Shl))
                 {
-                    LHS = new ExprNodeBinary()
+                    LHS = new ExprNodeBinary(pos)
                     {
                         LHS = LHS,
                         RHS = ParseAdd(),
@@ -895,7 +1022,7 @@ namespace yaza
                 }
                 else if (_tokenizer.TrySkipToken(Token.Shr))
                 {
-                    LHS = new ExprNodeBinary()
+                    LHS = new ExprNodeBinary(pos)
                     {
                         LHS = LHS,
                         RHS = ParseAdd(),
@@ -915,9 +1042,10 @@ namespace yaza
 
             while (true)
             {
+                var pos = _tokenizer.TokenPosition;
                 if (_tokenizer.TrySkipToken(Token.LE))
                 {
-                    LHS = new ExprNodeBinary()
+                    LHS = new ExprNodeBinary(pos)
                     {
                         LHS = LHS,
                         RHS = ParseShift(),
@@ -927,7 +1055,7 @@ namespace yaza
                 }
                 else if (_tokenizer.TrySkipToken(Token.GE))
                 {
-                    LHS = new ExprNodeBinary()
+                    LHS = new ExprNodeBinary(pos)
                     {
                         LHS = LHS,
                         RHS = ParseShift(),
@@ -937,7 +1065,7 @@ namespace yaza
                 }
                 else if (_tokenizer.TrySkipToken(Token.GT))
                 {
-                    LHS = new ExprNodeBinary()
+                    LHS = new ExprNodeBinary(pos)
                     {
                         LHS = LHS,
                         RHS = ParseShift(),
@@ -947,7 +1075,7 @@ namespace yaza
                 }
                 else if (_tokenizer.TrySkipToken(Token.LT))
                 {
-                    LHS = new ExprNodeBinary()
+                    LHS = new ExprNodeBinary(pos)
                     {
                         LHS = LHS,
                         RHS = ParseShift(),
@@ -967,9 +1095,10 @@ namespace yaza
 
             while (true)
             {
+                var pos = _tokenizer.TokenPosition;
                 if (_tokenizer.TrySkipToken(Token.EQ))
                 {
-                    LHS = new ExprNodeBinary()
+                    LHS = new ExprNodeBinary(pos)
                     {
                         LHS = LHS,
                         RHS = ParseRelational(),
@@ -979,7 +1108,7 @@ namespace yaza
                 }
                 else if (_tokenizer.TrySkipToken(Token.NE))
                 {
-                    LHS = new ExprNodeBinary()
+                    LHS = new ExprNodeBinary(pos)
                     {
                         LHS = LHS,
                         RHS = ParseRelational(),
@@ -999,9 +1128,10 @@ namespace yaza
 
             while (true)
             {
+                var pos = _tokenizer.TokenPosition;
                 if (_tokenizer.TrySkipToken(Token.BitwiseAnd))
                 {
-                    LHS = new ExprNodeBinary()
+                    LHS = new ExprNodeBinary(pos)
                     {
                         LHS = LHS,
                         RHS = ParseEquality(),
@@ -1022,9 +1152,10 @@ namespace yaza
 
             while (true)
             {
+                var pos = _tokenizer.TokenPosition;
                 if (_tokenizer.TrySkipToken(Token.BitwiseXor))
                 {
-                    LHS = new ExprNodeBinary()
+                    LHS = new ExprNodeBinary(pos)
                     {
                         LHS = LHS,
                         RHS = ParseBitwiseAnd(),
@@ -1045,9 +1176,10 @@ namespace yaza
 
             while (true)
             {
+                var pos = _tokenizer.TokenPosition;
                 if (_tokenizer.TrySkipToken(Token.BitwiseOr))
                 {
-                    LHS = new ExprNodeBinary()
+                    LHS = new ExprNodeBinary(pos)
                     {
                         LHS = LHS,
                         RHS = ParseBitwiseXor(),
@@ -1067,9 +1199,10 @@ namespace yaza
 
             while (true)
             {
+                var pos = _tokenizer.TokenPosition;
                 if (_tokenizer.TrySkipToken(Token.LogicalAnd))
                 {
-                    LHS = new ExprNodeBinary()
+                    LHS = new ExprNodeBinary(pos)
                     {
                         LHS = LHS,
                         RHS = ParseBitwiseOr(),
@@ -1089,9 +1222,10 @@ namespace yaza
 
             while (true)
             {
+                var pos = _tokenizer.TokenPosition;
                 if (_tokenizer.TrySkipToken(Token.LogicalOr))
                 {
-                    LHS = new ExprNodeBinary()
+                    LHS = new ExprNodeBinary(pos)
                     {
                         LHS = LHS,
                         RHS = ParseBitwiseAnd(),
@@ -1104,16 +1238,19 @@ namespace yaza
             }
         }
 
-        // Ternery
+        // Top level expression (except deref and z80 undocumented subops)
         ExprNode ParseExpression()
         {
-            // Capture position
+            // Uninitialized data initializer?
             var pos = _tokenizer.TokenPosition;
+            if (_tokenizer.TrySkipToken(Token.Question))
+                return new ExprNodeUninitialized(pos);
 
             // Parse the condition part
             var condition = ParseLogicalOr();
 
             // Is it a conditional
+            pos = _tokenizer.TokenPosition;
             if (_tokenizer.TrySkipToken(Token.Question))
             {
                 var trueNode = ParseExpression();
@@ -1122,17 +1259,14 @@ namespace yaza
 
                 var falseNode = ParseExpression();
 
-                return new ExprNodeTernery()
+                return new ExprNodeTernery(pos)
                 {
-                    SourcePosition = pos,
                     Condition = condition,
                     TrueValue = trueNode,
                     FalseValue = falseNode,
                 };
             }
 
-            if (condition.SourcePosition == null)
-                condition.SourcePosition = pos;
             return condition;
         }
 
@@ -1155,7 +1289,7 @@ namespace yaza
             // Is it a sub op?
             if (_tokenizer.Token == Token.Identifier && InstructionSet.IsValidSubOpName(_tokenizer.TokenString))
             {
-                var subOp = new ExprNodeSubOp(_tokenizer.TokenString);
+                var subOp = new ExprNodeSubOp(_tokenizer.TokenPosition, _tokenizer.TokenString);
                 _tokenizer.Next();
                 subOp.RHS = ParseOperandExpression();
                 return subOp;
@@ -1167,6 +1301,9 @@ namespace yaza
 
         public static bool IsReservedWord(string str)
         {
+            if (str == null)
+                return false;
+
             if (InstructionSet.IsConditionFlag(str) ||
                 InstructionSet.IsValidInstructionName(str) ||
                 InstructionSet.IsValidRegister(str))

@@ -157,7 +157,7 @@ namespace yaza
 
         public override void DefineSymbols(AstScope currentScope)
         {
-            _isTrue = Condition.Evaluate(currentScope) != 0;
+            _isTrue = Condition.EvaluateNumber(currentScope) != 0;
 
             if (_isTrue)
                 TrueBlock.DefineSymbols(currentScope);
@@ -275,7 +275,7 @@ namespace yaza
             {
                 var sym = kv.Value as ExprNode;
                 if (sym != null && !(sym is ExprNodeParameterized))
-                    w.WriteLine($"    {kv.Key,20}: 0x{sym.Evaluate(this):X4}");
+                    w.WriteLine($"    {kv.Key,20}: 0x{sym.EvaluateNumber(this):X4}");
             }
         }
 
@@ -327,7 +327,7 @@ namespace yaza
 
         public override void Layout(AstScope currentScope, LayoutContext ctx)
         {
-            ctx.SetOrg(_address = _expr.Evaluate(currentScope));
+            ctx.SetOrg(_address = (int)_expr.EvaluateNumber(currentScope));
         }
 
         public override void Generate(AstScope currentScope, GenerateContext ctx)
@@ -356,7 +356,7 @@ namespace yaza
 
         public override void Layout(AstScope currentScope, LayoutContext ctx)
         {
-            ctx.Seek(_address = _expr.Evaluate(currentScope));
+            ctx.Seek(_address = (int)_expr.EvaluateNumber(currentScope));
         }
 
         public override void Generate(AstScope currentScope, GenerateContext ctx)
@@ -408,7 +408,7 @@ namespace yaza
             ctx.ListTo(SourcePosition);
             foreach (var e in _values)
             {
-                ctx.Emit8(e.SourcePosition, e.Evaluate(currentScope));
+                ctx.Emit8(e.SourcePosition, e.EvaluateNumber(currentScope));
             }
         }
     }
@@ -436,7 +436,7 @@ namespace yaza
             ctx.ListTo(SourcePosition);
             foreach (var e in _values)
             {
-                ctx.Emit16(e.SourcePosition, e.Evaluate(currentScope));
+                ctx.Emit16(e.SourcePosition, e.EvaluateNumber(currentScope));
             }
         }
     }
@@ -462,7 +462,7 @@ namespace yaza
 
         public override void Layout(AstScope currentScope, LayoutContext ctx)
         {
-            ctx.ReserveBytes(_bytes = _bytesExpression.Evaluate(currentScope));
+            ctx.ReserveBytes(_bytes = (int)_bytesExpression.EvaluateNumber(currentScope));
         }
 
         public override void Generate(AstScope currentScope, GenerateContext ctx)
@@ -480,7 +480,7 @@ namespace yaza
 
             if (ValueExpression != null)
             {
-                var value = ValueExpression.Evaluate(currentScope);
+                var value = ValueExpression.EvaluateNumber(currentScope);
 
                 // Check range (yes, sbyte and byte)
                 if (value < sbyte.MinValue || value > byte.MaxValue)
@@ -507,7 +507,7 @@ namespace yaza
         public AstLabel(string name, SourcePosition position)
         {
             _name = name;
-            _value = new ExprNodeDeferredValue(name, position);
+            _value = new ExprNodeDeferredValue(position, name);
         }
 
         string _name;
@@ -539,7 +539,7 @@ namespace yaza
         public AstEquate(string name, ExprNode value, SourcePosition position)
         {
             _name = name;
-            _value = new ExprNodeEquWrapper(value, name, position);
+            _value = new ExprNodeEquWrapper(position, value, name);
         }
 
         string _name;
@@ -575,7 +575,7 @@ namespace yaza
             }
             else
             {
-                var value = new ExprNodeParameterized(ParameterNames, _value);
+                var value = new ExprNodeParameterized(SourcePosition, ParameterNames, _value);
                 currentScope.Define(_name + ExprNodeParameterized.MakeSuffix(ParameterNames.Length), value);
             }
         }
@@ -756,6 +756,7 @@ namespace yaza
                     case AddressingMode.Immediate:
                         sb.Append($"?");
                         break;
+
                     case AddressingMode.Register:
                         sb.Append($"{o.GetRegister(currentScope)}");
                         break;
@@ -763,6 +764,11 @@ namespace yaza
                     case AddressingMode.RegisterPlusImmediate:
                         sb.Append($"{o.GetRegister(currentScope)}+?");
                         break;
+
+                    default:
+                        sb.Append($"<illegal expression>");
+                        break;
+
                 }
             }
 
@@ -784,7 +790,7 @@ namespace yaza
             ctx.EnterInstruction(this);
             try
             {
-                List<int> immediateValues = null;
+                List<long> immediateValues = null;
                 for (int i = 0; i < _operands.Count; i++)
                 {
                     var o = _operands[i];
@@ -798,7 +804,7 @@ namespace yaza
                     {
                         // Create the list if not already
                         if (immediateValues == null)
-                            immediateValues = new List<int>();
+                            immediateValues = new List<long>();
                         immediateValues.Add(0);
                         continue;
                     }
@@ -807,7 +813,7 @@ namespace yaza
                     {
                         // Create the list if not already
                         if (immediateValues == null)
-                            immediateValues = new List<int>();
+                            immediateValues = new List<long>();
 
                         // Get the immediate value
                         immediateValues.Add(o.GetImmediateValue(currentScope));
@@ -1025,8 +1031,8 @@ namespace yaza
         {
             if (_bitPattern == null)
             {
-                var value = _value.Evaluate(scope);
-                var bitWidth = _bitWidth.Evaluate(scope);
+                var value = (int)_value.EvaluateNumber(scope);
+                var bitWidth = (int)_bitWidth.EvaluateNumber(scope);
                 var str = Convert.ToString(value, 2);
                 if (str.Length > bitWidth)
                 {
@@ -1112,8 +1118,8 @@ namespace yaza
                 return;
 
             // Work out width and height
-            int blockWidth = _width.Evaluate(currentScope);
-            int blockHeight = _height.Evaluate(currentScope);
+            int blockWidth = (int)_width.EvaluateNumber(currentScope);
+            int blockHeight = (int)_height.EvaluateNumber(currentScope);
             if (blockWidth < 1)
                 throw new CodeException("Invalid bitmap block width", SourcePosition);
             if (blockHeight < 1)
@@ -1236,6 +1242,203 @@ namespace yaza
             {
                 Log.Error(SourcePosition, _message);
             }
+        }
+    }
+
+    class AstFieldDefinition : AstElement
+    {
+        public AstFieldDefinition(SourcePosition pos, string name, string typename)
+        {
+            SourcePosition = pos;
+            _name = name;
+            _typename = typename;
+        }
+
+        string _name;
+        string _typename;
+        AstType _type;
+        int _offset;
+
+        public string Name => _name;
+        public AstType Type => _type;
+        public int Offset => _offset;
+
+        public override void Dump(TextWriter w, int indent)
+        {
+            w.WriteLine($"{Utils.Indent(indent)}- FIELD: '{_name}' {_typename} {SourcePosition.AstDesc()}");
+        }
+
+        public override void DefineSymbols(AstScope currentScope)
+        {
+            if (Parser.IsReservedWord(_name))
+                throw new CodeException($"Illegal field name: '{_name}' is a reserved word", SourcePosition);
+            base.DefineSymbols(currentScope);
+        }
+
+        public void BuildType(AstScope definingScope, ref int offset)
+        {
+            // Store offset
+            _offset = offset;
+
+            // Find the field's type
+            var symbol = definingScope.FindSymbol(_typename);
+            if (symbol == null)
+                throw new CodeException($"Unknown type: '{_typename}'", SourcePosition);
+            _type = symbol as AstType;
+            if (_type == null)
+                throw new CodeException($"Invalid type declaration: '{_typename}' is not a type");
+
+            // Update the size
+            offset += _type.SizeOf;
+        }
+    }
+
+    abstract class AstType : AstElement, ISymbolValue
+    {
+        public AstType()
+        {
+        }
+
+        public abstract string Name { get; }
+        public abstract int SizeOf { get; }
+        public virtual AstFieldDefinition FindField(string name) { return null; }
+
+        public override void DefineSymbols(AstScope currentScope)
+        {
+            currentScope.Define(Name, this);
+            base.DefineSymbols(currentScope);
+        }
+
+    }
+
+    class AstTypeByte : AstType
+    {
+        public AstTypeByte()
+        {
+        }
+
+        public override void Dump(TextWriter w, int indent)
+        {
+            w.WriteLine($"{Utils.Indent(indent)}- TYPE: 'BYTE'");
+        }
+
+        public override string Name => "BYTE";
+        public override int SizeOf => 1;
+
+        public override void DefineSymbols(AstScope currentScope)
+        {
+            currentScope.Define("DB", this);
+            currentScope.Define("DEFB", this);
+            currentScope.Define("DM", this);
+            currentScope.Define("DEFM", this);
+            base.DefineSymbols(currentScope);
+        }
+    }
+
+    class AstTypeWord : AstType
+    {
+        public AstTypeWord()
+        {
+        }
+
+        public override void Dump(TextWriter w, int indent)
+        {
+            w.WriteLine($"{Utils.Indent(indent)}- TYPE: 'WORD'");
+        }
+
+        public override string Name => "WORD";
+        public override int SizeOf => 2;
+
+        public override void DefineSymbols(AstScope currentScope)
+        {
+            currentScope.Define("DW", this);
+            currentScope.Define("DEFW", this);
+            base.DefineSymbols(currentScope);
+        }
+    }
+
+    class AstStructDefinition : AstType
+    {
+        public AstStructDefinition(string name)
+        {
+            _name = name;
+        }
+
+        public void AddField(AstFieldDefinition fieldDef)
+        {
+            _fields.Add(fieldDef);
+        }
+
+        public override string Name => _name;
+        public override int SizeOf => _sizeof;
+
+        string _name;
+        int _sizeof = -1;
+        List<AstFieldDefinition> _fields = new List<AstFieldDefinition>();
+        Dictionary<string, AstFieldDefinition> _fieldsByName = new Dictionary<string, AstFieldDefinition>(StringComparer.InvariantCultureIgnoreCase);
+        AstScope _definingScope;
+
+        void BuildType()
+        {
+            // Alredy built?
+            if (_sizeof >= 0)
+                return;
+
+            _sizeof = 0;
+
+            foreach (var fd in _fields)
+            {
+                fd.BuildType(_definingScope, ref _sizeof);
+                if (fd.Name != null)
+                {
+                    if (_fieldsByName.ContainsKey(fd.Name))
+                    {
+                        Log.Error(fd.SourcePosition, $"Duplicate field name: '{fd.Name}'");
+                    }
+                    else
+                    {
+                        _fieldsByName.Add(fd.Name, fd);
+                    }
+                }
+            }
+        }
+
+        public override AstFieldDefinition FindField(string name)
+        {
+            BuildType();
+
+            AstFieldDefinition def;
+            if (_fieldsByName.TryGetValue(name, out def))
+                return def;
+            return null;
+        }
+
+        public override void Dump(TextWriter w, int indent)
+        {
+            w.WriteLine($"{Utils.Indent(indent)}- STRUCT: '{_name}' {SourcePosition.AstDesc()}");
+            foreach (var f in _fields)
+            {
+                f.Dump(w, indent + 1);
+            }
+        }
+
+        public override void DefineSymbols(AstScope currentScope)
+        {
+            if (Parser.IsReservedWord(_name))
+                throw new CodeException($"Illegal struct name: '{_name}' is a reserved word", SourcePosition);
+
+            _definingScope = currentScope;
+
+            foreach (var f in _fields)
+                f.DefineSymbols(currentScope);
+
+            base.DefineSymbols(currentScope);
+        }
+
+        public override void Layout(AstScope currentScope, LayoutContext ctx)
+        {
+            BuildType();
+            base.Layout(currentScope, ctx);
         }
     }
 }

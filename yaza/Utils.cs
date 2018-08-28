@@ -12,6 +12,16 @@ namespace yaza
             return new string(' ', indent * 2);
         }
 
+        public static string TypeName(object o)
+        {
+            if (o == null)
+                return "null";
+            var name = o.GetType().Name;
+            if (name.StartsWith("ExprNode"))
+                return name.Substring(8).ToLowerInvariant();
+            return name;
+        }
+
         public static ushort ParseUShort(string str)
 		{
 			try

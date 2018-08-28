@@ -17,9 +17,14 @@ namespace yaza
         String,
 
         Comma,
+        Period,
         Colon,
         OpenRound,
         CloseRound,
+        OpenSquare,
+        CloseSquare,
+        OpenBrace,
+        CloseBrace,
 
         Plus,
         Minus,
@@ -65,19 +70,25 @@ namespace yaza
 
         Token _token;
         string _string;
-        int _number;
+        long _number;
         int _tokenPos;
 
         public Token Token => _token;
         public SourcePosition TokenPosition => _source.CreatePosition(_tokenPos);
         public string TokenRaw => _source.Extract(_tokenPos);
         public string TokenString => _string;
-        public int TokenNumber => _number;
+        public long TokenNumber => _number;
 
         public void Next()
         {
             _token = GetNextToken();
             return;
+        }
+
+        public void SkipWhitespace()
+        {
+            while (_token == Token.EOL)
+                Next();
         }
 
         public StringSource Source => _source;
@@ -163,9 +174,14 @@ namespace yaza
                 case Token.Number: return "number";
                 case Token.String: return "string";
                 case Token.Comma: return "','";
+                case Token.Period: return "'.'";
                 case Token.Colon: return "':'";
                 case Token.OpenRound: return "'('";
                 case Token.CloseRound: return "')'";
+                case Token.OpenSquare: return "'['";
+                case Token.CloseSquare: return "']'";
+                case Token.OpenBrace: return "'{'";
+                case Token.CloseBrace: return "'}'";
                 case Token.Plus: return "'+'";
                 case Token.Minus: return "'-'";
                 case Token.Multiply: return "'*'";
@@ -209,7 +225,7 @@ namespace yaza
             if (_source.Current == '$' && IsHexDigit(_source.CharAt(1)))
             {
                 _source.Next();
-                _number = Convert.ToInt32(_source.SkipAndExtract(IsHexDigit), 16);
+                _number = Convert.ToInt64(_source.SkipAndExtract(IsHexDigit), 16);
                 return Token.Number;
             }
 
@@ -235,28 +251,28 @@ namespace yaza
             // Hex prefix
             if (_source.SkipI("&h"))
             {
-                _number = Convert.ToInt32(_source.SkipAndExtract(IsHexDigit), 16);
+                _number = Convert.ToInt64(_source.SkipAndExtract(IsHexDigit), 16);
                 return Token.Number;
             }
 
             // Binary prefix
             if (_source.SkipI("&b"))
             {
-                _number = Convert.ToInt32(_source.SkipAndExtract(IsBinaryDigit), 2);
+                _number = Convert.ToInt64(_source.SkipAndExtract(IsBinaryDigit), 2);
                 return Token.Number;
             }
 
             // Decimal prefix
             if (_source.SkipI("&n") || _source.SkipI("&d"))
             {
-                _number = Convert.ToInt32(_source.SkipAndExtract(IsDigit), 10);
+                _number = Convert.ToInt64(_source.SkipAndExtract(IsDigit), 10);
                 return Token.Number;
             }
 
             // Octal prefix
             if (_source.SkipI("&o") || _source.SkipI("&t"))
             {
-                _number = Convert.ToInt32(_source.SkipAndExtract(IsOctalDigit), 8);
+                _number = Convert.ToInt64(_source.SkipAndExtract(IsOctalDigit), 8);
                 return Token.Number;
             }
 
@@ -272,6 +288,10 @@ namespace yaza
                     _source.Next();
                     return Token.Comma;
 
+                case '.':
+                    _source.Next();
+                    return Token.Period;
+
                 case ':':
                     _source.Next();
                     return Token.Colon;
@@ -283,6 +303,22 @@ namespace yaza
                 case ')':
                     _source.Next();
                     return Token.CloseRound;
+
+                case '[':
+                    _source.Next();
+                    return Token.OpenSquare;
+
+                case ']':
+                    _source.Next();
+                    return Token.CloseSquare;
+
+                case '{':
+                    _source.Next();
+                    return Token.OpenBrace;
+
+                case '}':
+                    _source.Next();
+                    return Token.CloseBrace;
 
                 case '+':
                     _source.Next();

@@ -235,7 +235,7 @@ namespace yaza
         }
 
         // Emit any 8-bit value (must be between -128 and 255)
-        public void Emit8(SourcePosition pos, int value)
+        public void Emit8(SourcePosition pos, long value)
         {
             // Check range (yes, sbyte and byte)
             if (value < sbyte.MinValue || value > byte.MaxValue)
@@ -249,7 +249,7 @@ namespace yaza
         }
 
         // Emit any 16-bit vaue (must be between -16384 and 65535)
-        public void Emit16(SourcePosition pos, int value)
+        public void Emit16(SourcePosition pos, long value)
         {
             // Check range (yes, short and ushort)
             if (value < short.MinValue || value > ushort.MaxValue)

@@ -1,12 +1,34 @@
-                                ZFILL(ptr,len) MACRO
-                                    LD  HL,ptr
-                                    LD  DE,ptr+1
-                                    LD  BC,len-1
-                                    LD  (HL),0
-                                    LDIR
-                                ENDM
+                                COORD STRUCT
+                                	XCoord		DB ?
+                                	YCoord		DB ?
+                                	YSubCoord	DB ?
+                                ENDS
                                 
-0000: 21 00 F0 11 01 F0 01 FF   ZFILL 0xF000, 0x400
-0008: 03 36 00 ED B0 
+                                BOT STRUCT 
+                                	Value		WORD ?
+                                	Coord		COORD ?
+                                	Value2		WORD ?
+                                ENDS
+                                
+                                	;BOT		[0, [0,0,0], 0]
+                                	;BOT		4 DUP ?
+                                	;BOT     4 DUP 0
+                                
+0000: DD 7E 02                  	ld		a,(IX+BOT.COORD)
+0003: DD 7E 02                  	ld		a,(IX+BOT.COORD.XCoord)
+0006: DD 7E 03                  	ld		a,(IX+BOT.COORD.YCoord)
+0009: DD 7E 04                  	ld		a,(IX+BOT.COORD.YSubCoord)
+000C: DD 7E 00                  	ld		a,(IX+BOT.Value)
+000F: DD 7E 01                  	ld		a,(IX+BOT.Value+1)
+0012: DD 7E 05                  	ld		a,(IX+BOT.Value2)
+0015: 11 05 00                  	ld		de,BOT.Value2
+                                
+                                
+                                
+                                	; TODO
+                                	; - BYTE/WORD/DB/DW etc...
+                                	; - sizeof (Type/Member)
+                                	; - data declarations 
+                                	; - support for DUP
 
-000D:
+0018:
