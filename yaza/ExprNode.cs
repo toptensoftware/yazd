@@ -20,12 +20,6 @@ namespace yaza
         RegisterPlusImmediate = Register | Immediate,
 
         Mask = 0x07,
-
-        /*
-        DerefImmediate = Deref | Immediate,
-        DerefRegister = Deref | Register,
-        DerefRegisterPlusImmediate = Deref | RegisterPlusImmediate,
-        */
     }
 
     public interface ISymbolValue
@@ -66,6 +60,7 @@ namespace yaza
         public virtual string GetRegister(AstScope scope) { return null; }
         public virtual string GetSubOp() { throw new InvalidOperationException(); }
         public virtual long GetImmediateValue(AstScope scope) { return EvaluateNumber(scope); }
+        public virtual IEnumerable<ExprNode> EnumData(AstScope scope) { yield return this; }
     }
 
     public class ExprNodeParameterized : ExprNode
@@ -202,9 +197,9 @@ namespace yaza
 
 
 
-    public class ExprNodeLiteral : ExprNode
+    public class ExprNodeNumberLiteral : ExprNode
     {
-        public ExprNodeLiteral(SourcePosition pos, long value)
+        public ExprNodeNumberLiteral(SourcePosition pos, long value)
             : base(pos)
         {
             _value = value;
@@ -214,7 +209,7 @@ namespace yaza
 
         public override void Dump(TextWriter w, int indent)
         {
-            w.WriteLine($"{Utils.Indent(indent)}- literal {_value}");
+            w.WriteLine($"{Utils.Indent(indent)}- number literal {_value}");
         }
 
         public override long EvaluateNumber(AstScope scope)
@@ -227,6 +222,124 @@ namespace yaza
             return AddressingMode.Immediate;
         }
     }
+
+    public class ExprNodeStringLiteral : ExprNode
+    {
+        public ExprNodeStringLiteral(SourcePosition pos, string value)
+            : base(pos)
+        {
+            _value = value;
+        }
+
+        string _value;
+
+        public override void Dump(TextWriter w, int indent)
+        {
+            w.WriteLine($"{Utils.Indent(indent)}- string literal `{_value}`");
+        }
+
+        public override object Evaluate(AstScope scope)
+        {
+            return _value;
+        }
+
+        public override long EvaluateNumber(AstScope scope)
+        {
+            if (_value.Length == 1)
+                return _value[0];
+
+            throw new CodeException($"Only single character strings can be used as numeric literals", SourcePosition);
+        }
+
+        public override AddressingMode GetAddressingMode(AstScope scope)
+        {
+            if (_value.Length == 1)
+                return AddressingMode.Immediate;
+            else
+                return AddressingMode.Invalid;
+        }
+
+        public override IEnumerable<ExprNode> EnumData(AstScope scope)
+        {
+            foreach (var ch in _value)
+                yield return new ExprNodeNumberLiteral(SourcePosition, ch);
+        }
+    }
+
+    public class ExprNodeConcat : ExprNode
+    {
+        public ExprNodeConcat(SourcePosition pos)
+            : base(pos)
+        {
+
+        }
+
+        List<ExprNode> _elements = new List<ExprNode>();
+
+        public void AddElement(ExprNode element)
+        {
+            _elements.Add(element);
+        }
+
+        public override void Dump(TextWriter w, int indent)
+        {
+            w.WriteLine($"{Utils.Indent(indent)}- concat");
+            foreach (var e in _elements)
+            {
+                e.Dump(w, indent + 1);
+            }
+        }
+
+        public override object Evaluate(AstScope scope)
+        {
+            throw new CodeException("Invalid use of concatenated data");
+        }
+
+        public override IEnumerable<ExprNode> EnumData(AstScope scope)
+        {
+            return _elements.SelectMany(x => x.EnumData(scope));
+        }
+    }
+
+    public class ExprNodeDup : ExprNode
+    {
+        public ExprNodeDup(SourcePosition pos, ExprNode count, ExprNode value) 
+            : base(pos)
+        {
+            _count = count;
+            _value = value;
+        }
+
+        ExprNode _count;
+        ExprNode _value;
+
+        public override void Dump(TextWriter w, int indent)
+        {
+            w.WriteLine($"{Utils.Indent(indent)}- dup");
+
+            w.WriteLine($"{Utils.Indent(indent+1)}- count:");
+            _count.Dump(w, indent + 2);
+
+            w.WriteLine($"{Utils.Indent(indent + 1)}- value:");
+            _value.Dump(w, indent + 2);
+        }
+
+        public override IEnumerable<ExprNode> EnumData(AstScope scope)
+        {
+            int count = (int)_count.EvaluateNumber(scope);
+            for (int i = 0; i < count; i++)
+            {
+                foreach (var e in _value.EnumData(scope))
+                    yield return e;
+            }
+        }
+
+        public override object Evaluate(AstScope scope)
+        {
+            throw new CodeException("Invalid use of 'DUP'");
+        }
+    }
+
 
     public class ExprNodeDeferredValue : ExprNode
     {
@@ -1134,9 +1247,9 @@ namespace yaza
     }
 
     // Represents an array of values [a,b,c]
-    public class ExprNodeArray : ExprNode
+    public class ExprNodeOrderedStructData : ExprNode
     {
-        public ExprNodeArray(SourcePosition pos)
+        public ExprNodeOrderedStructData(SourcePosition pos)
             : base(pos)
         {
         }
@@ -1150,7 +1263,7 @@ namespace yaza
 
         public override void Dump(TextWriter w, int indent)
         {
-            w.WriteLine($"{Utils.Indent(indent)}- array");
+            w.WriteLine($"{Utils.Indent(indent)}- ordered struct data");
             foreach (var e in _elements)
             {
                 e.Dump(w, indent + 1);
@@ -1159,14 +1272,14 @@ namespace yaza
 
         public override object Evaluate(AstScope scope)
         {
-            return _elements.Select(x => x.Evaluate(scope)).ToArray();
+            return _elements.ToArray();
         }
     }
 
     // Represents a map of values { x: a, y: b }
-    public class ExprNodeMap : ExprNode
+    public class ExprNodeNamedStructData : ExprNode
     {
-        public ExprNodeMap(SourcePosition pos)
+        public ExprNodeNamedStructData(SourcePosition pos)
             : base(pos)
         {
         }
@@ -1185,12 +1298,17 @@ namespace yaza
 
         public override void Dump(TextWriter w, int indent)
         {
-            w.WriteLine($"{Utils.Indent(indent)}- array");
+            w.WriteLine($"{Utils.Indent(indent)}- named struct data");
             foreach (var e in _entries)
             {
                 w.WriteLine($"{Utils.Indent(indent + 1)}- \"{e.Key}\"");
                 e.Value.Dump(w, indent + 2);
             }
+        }
+
+        public override object Evaluate(AstScope scope)
+        {
+            return _entries;
         }
     }
 
@@ -1212,14 +1330,4 @@ namespace yaza
             return this;        // as good as anything, just need a marker
         }
     }
-
-    /*
-    public class ExprNodeDataDeclaration : ExprNode
-    {
-        public ExprNodeDataDeclaration(SourcePosition pos)
-            : base(pos)
-        {
-        }
-    }
-    */
 }

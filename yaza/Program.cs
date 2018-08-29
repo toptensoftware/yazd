@@ -277,7 +277,7 @@ namespace yaza
                 }
                 else
                 {
-                    root.Define(kv.Key, new ExprNodeLiteral(null, 1));
+                    root.Define(kv.Key, new ExprNodeNumberLiteral(null, 1));
                 }
             }
 

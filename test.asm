@@ -1,34 +1,39 @@
-COORD STRUCT
-	XCoord		DB ?
-	YCoord		DB ?
-	YSubCoord	DB ?
+
+
+ALIEN   STRUCT
+    POS     COORD   ?
+    MODE    DB      ?
 ENDS
 
-BOT STRUCT 
-	Value		WORD ?
-	Coord		COORD ?
-	Value2		WORD ?
+COORD   STRUCT
+    X   DB  ?
+    Y   DB  ?
 ENDS
 
-	;BOT		[0, [0,0,0], 0]
-	;BOT		4 DUP ?
-	;BOT     4 DUP 0
 
-	ld		a,(IX+BOT.COORD)
-	ld		a,(IX+BOT.COORD.XCoord)
-	ld		a,(IX+BOT.COORD.YCoord)
-	ld		a,(IX+BOT.COORD.YSubCoord)
-	ld		a,(IX+BOT.Value)
-	ld		a,(IX+BOT.Value+1)
-	ld		a,(IX+BOT.Value2)
-	ld		de,BOT.Value2
+PLAYER  STRUCT
+    POS     COORD   ?
+    FRAME   DB      ?
+ENDS
 
-	ld		a,sizeof(BOT)
+HIGHSCORE STRUCT
+	NAME	DB	30 dup ?,?
+	SCORE	DW  ?
+ENDS
 
+	HIGHSCORE	[ "Brad", 23 ]
 
+	DB  5*3
+	DW	10
+	DW  "Woah!",0
+	DB	3 DUP ('Hello', 0)
 
-	; TODO
-	; - BYTE/WORD/DB/DW etc...
-	; - sizeof (Type/Member)
-	; - data declarations 
-	; - support for DUP
+	DB		?
+	COORD	?
+
+	ALIEN	?
+
+	ALIEN { 
+		MODE: 1, 
+		POS: [3,9]
+	}

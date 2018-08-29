@@ -1,36 +1,49 @@
-                                COORD STRUCT
-                                	XCoord		DB ?
-                                	YCoord		DB ?
-                                	YSubCoord	DB ?
+                                
+                                
+                                ALIEN   STRUCT
+                                    POS     COORD   ?
+                                    MODE    DB      ?
                                 ENDS
                                 
-                                BOT STRUCT 
-                                	Value		WORD ?
-                                	Coord		COORD ?
-                                	Value2		WORD ?
+                                COORD   STRUCT
+                                    X   DB  ?
+                                    Y   DB  ?
                                 ENDS
                                 
-                                	;BOT		[0, [0,0,0], 0]
-                                	;BOT		4 DUP ?
-                                	;BOT     4 DUP 0
                                 
-0000: DD 7E 02                  	ld		a,(IX+BOT.COORD)
-0003: DD 7E 02                  	ld		a,(IX+BOT.COORD.XCoord)
-0006: DD 7E 03                  	ld		a,(IX+BOT.COORD.YCoord)
-0009: DD 7E 04                  	ld		a,(IX+BOT.COORD.YSubCoord)
-000C: DD 7E 00                  	ld		a,(IX+BOT.Value)
-000F: DD 7E 01                  	ld		a,(IX+BOT.Value+1)
-0012: DD 7E 05                  	ld		a,(IX+BOT.Value2)
-0015: 11 05 00                  	ld		de,BOT.Value2
+                                PLAYER  STRUCT
+                                    POS     COORD   ?
+                                    FRAME   DB      ?
+                                ENDS
                                 
-0018: 3E 07                     	ld		a,sizeof(BOT)
+                                HIGHSCORE STRUCT
+                                	NAME	DB	30 dup ?,?
+                                	SCORE	DW  ?
+                                ENDS
                                 
+0000: 42 72 61 64 00 00 00 00   	HIGHSCORE	[ "Brad", 23 ]
+0008: 00 00 00 00 00 00 00 00 
+0010: 00 00 00 00 00 00 00 00 
+0018: 00 00 00 00 00 00 00 17 
+0020: 00 
                                 
+0021: 0F                        	DB  5*3
+0022: 0A 00                     	DW	10
+0024: 57 00 6F 00 61 00 68 00   	DW  "Woah!",0
+002C: 21 00 00 00 
+0030: 48 65 6C 6C 6F 00 48 65   	DB	3 DUP ('Hello', 0)
+0038: 6C 6C 6F 00 48 65 6C 6C 
+0040: 6F 00 
                                 
-                                	; TODO
-                                	; - BYTE/WORD/DB/DW etc...
-                                	; - sizeof (Type/Member)
-                                	; - data declarations 
-                                	; - support for DUP
+0042: FF                        	DB		?
+0043: FF FF                     	COORD	?
+                                
+0045: FF FF FF                  	ALIEN	?
+                                
+0048: 03 09 01                  	ALIEN { 
+                                		MODE: 1, 
+                                		POS: [3,9]
+                                	}
+                                
 
-001A:
+004B:

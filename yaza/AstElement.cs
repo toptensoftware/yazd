@@ -366,81 +366,6 @@ namespace yaza
         }
     }
 
-    // "DB" or "DW" directive
-    public abstract class AstDxElement : AstElement
-    {
-        public void AddValue(ExprNode value)
-        {
-            _values.Add(value);
-        }
-
-        protected List<ExprNode> _values = new List<ExprNode>();
-
-        public override void Dump(TextWriter w, int indent)
-        {
-            foreach (var v in _values)
-            {
-                v.Dump(w, indent);
-            }
-        }
-    }
-
-    // "DB" directive
-    public class AstDbElement : AstDxElement
-    {
-        public AstDbElement()
-        {
-        }
-
-        public override void Dump(TextWriter w, int indent)
-        {
-            w.WriteLine($"{Utils.Indent(indent)}- DB {SourcePosition.AstDesc()}");
-            base.Dump(w, indent + 1);
-        }
-
-        public override void Layout(AstScope currentScope, LayoutContext ctx)
-        {
-            ctx.ReserveBytes(_values.Count);
-        }
-
-        public override void Generate(AstScope currentScope, GenerateContext ctx)
-        {
-            ctx.ListTo(SourcePosition);
-            foreach (var e in _values)
-            {
-                ctx.Emit8(e.SourcePosition, e.EvaluateNumber(currentScope));
-            }
-        }
-    }
-
-    // "DW" directive
-    public class AstDwElement : AstDxElement
-    {
-        public AstDwElement()
-        {
-        }
-
-        public override void Dump(TextWriter w, int indent)
-        {
-            w.WriteLine($"{Utils.Indent(indent)}- DW {SourcePosition.AstDesc()}");
-            base.Dump(w, indent + 1);
-        }
-
-        public override void Layout(AstScope currentScope, LayoutContext ctx)
-        {
-            ctx.ReserveBytes(_values.Count * 2);
-        }
-
-        public override void Generate(AstScope currentScope, GenerateContext ctx)
-        {
-            ctx.ListTo(SourcePosition);
-            foreach (var e in _values)
-            {
-                ctx.Emit16(e.SourcePosition, e.EvaluateNumber(currentScope));
-            }
-        }
-    }
-
     // "DS" directive
     public class AstDsElement : AstElement
     {
@@ -938,12 +863,12 @@ namespace yaza
         }
     }
 
-    public class AstMacroInvocation : AstElement
+    public class AstMacroInvocationOrDataDeclaration : AstElement
     {
-        public AstMacroInvocation(SourcePosition position, string macro)
+        public AstMacroInvocationOrDataDeclaration(SourcePosition position, string macro)
         {
             _position = position;
-            _macro = macro;
+            _macroOrDataTypeName = macro;
         }
 
         public void AddOperand(ExprNode operand)
@@ -952,12 +877,12 @@ namespace yaza
         }
 
         SourcePosition _position;
-        string _macro;
+        string _macroOrDataTypeName;
         List<ExprNode> _operands = new List<ExprNode>();
 
         public override void Dump(TextWriter w, int indent)
         {
-            w.WriteLine($"{Utils.Indent(indent)}- {_macro} {SourcePosition.AstDesc()}");
+            w.WriteLine($"{Utils.Indent(indent)}- {_macroOrDataTypeName} {SourcePosition.AstDesc()}");
             foreach (var o in _operands)
             {
                 o.Dump(w, indent + 1);
@@ -969,41 +894,219 @@ namespace yaza
         }
 
 
+        AstType _dataType;
+        int _reservedBytes;
         AstMacroDefinition _macroDefinition;
         AstScope _resolvedScope;
-        void ResolveMacroDefinition(AstScope currentScope)
-        {
-        }
 
         public override void Layout(AstScope currentScope, LayoutContext ctx)
         {
-            // Find the macro definition
-            _macroDefinition = currentScope.FindSymbol(_macro + ExprNodeParameterized.MakeSuffix(_operands.Count)) as AstMacroDefinition;
-            if (_macroDefinition == null)
-                throw new CodeException($"Unrecognized macro: '{_macro}' (with {_operands.Count} arguments)", SourcePosition);
+            // Is it a data declaration?
+            _dataType = currentScope.FindSymbol(_macroOrDataTypeName) as AstType;
+            if (_dataType != null)
+            {
+                // Work out how many elements in total
+                int totalElements = 0;
+                foreach (var n in _operands)
+                {
+                    totalElements += n.EnumData(currentScope).Count();
+                }
 
-            // Create resolved scope
-            _resolvedScope = _macroDefinition.Resolve(currentScope, _operands.ToArray());
+                // Reserve space
+                ctx.ReserveBytes(_reservedBytes = totalElements * _dataType.SizeOf);
 
-            // Define macro symbols
-            _macroDefinition.DefineSymbolsResolved(_resolvedScope);
+                return;
+            }
 
-            // Layout 
-            _macroDefinition.LayoutResolved(_resolvedScope, ctx);
+            // Is it a macro invocation?
+            _macroDefinition = currentScope.FindSymbol(_macroOrDataTypeName + ExprNodeParameterized.MakeSuffix(_operands.Count)) as AstMacroDefinition;
+            if (_macroDefinition != null)
+            {
+                // Create resolved scope
+                _resolvedScope = _macroDefinition.Resolve(currentScope, _operands.ToArray());
+
+                // Define macro symbols
+                _macroDefinition.DefineSymbolsResolved(_resolvedScope);
+
+                // Layout 
+                _macroDefinition.LayoutResolved(_resolvedScope, ctx);
+
+                return;
+            }
+
+            throw new CodeException($"Unrecognized symbol: '{_macroOrDataTypeName}' is not a known data type or macro (with {_operands.Count} arguments)", SourcePosition);
         }
 
         public override void Generate(AstScope currentScope, GenerateContext ctx)
         {
             ctx.ListTo(SourcePosition);
-            ctx.EnterMacro();
-            try
+
+            // Is it a data declaration?
+            if (_dataType != null)
             {
-                _macroDefinition.GenerateResolved(_resolvedScope, ctx);
+                // Setup storage for data
+                var data = new List<byte>();
+
+                // Pack data elements
+                bool anyPackErrors = false;
+                foreach (var n in _operands.SelectMany(x=>x.EnumData(currentScope)))
+                {
+                    try
+                    {
+                        PackData(currentScope, data, _dataType, 1, n);
+                    }
+                    catch (CodeException x)
+                    {
+                        Log.Error(x);
+                        anyPackErrors = true;
+                    }
+                }
+
+                // Sanity check
+                if (!anyPackErrors && _reservedBytes != data.Count)
+                    throw new CodeException($"Internal error packing data declaration (should have generated {_reservedBytes} but actually generated {data.Count}", SourcePosition);
+
+                // Emit the data
+                ctx.EmitBytes(data.ToArray(), true);
+                return;
             }
-            finally
+
+            // Is it a macro invocation?
+            if (_macroDefinition != null)
             {
-                ctx.LeaveMacro();
+                ctx.EnterMacro();
+                try
+                {
+                    _macroDefinition.GenerateResolved(_resolvedScope, ctx);
+                }
+                finally
+                {
+                    ctx.LeaveMacro();
+                }
+                return;
             }
+        }
+
+        void PackData(AstScope scope, List<byte> buffer, AstType dataType, int arraySize, ExprNode expr)
+        {
+            // Packing into an array?
+            if (arraySize != 1)
+            {
+                int packCount = 0;
+                foreach (var d in expr.EnumData(scope))
+                {
+                    PackData(scope, buffer, dataType, 1, d);
+                    packCount++;
+                }
+
+                // Too big?
+                if (packCount > arraySize)
+                {
+                    throw new CodeException($"Data too big for field: room for {arraySize}, but found {packCount}", expr.SourcePosition);
+                }
+
+                // Fill the rest with zero
+                if (packCount < arraySize)
+                {
+                    buffer.AddRange(Enumerable.Repeat<byte>(0, dataType.SizeOf * (arraySize - packCount)));
+                }
+                return;
+            }
+
+            // Get the value
+            var value = expr.Evaluate(scope);
+
+            // Uninitialized data?
+            if (value is ExprNodeUninitialized)
+            {
+                buffer.AddRange(Enumerable.Repeat<byte>(0xFF, dataType.SizeOf));
+                return;
+            }
+
+            // Zero fill data?
+            if ((value is long) && (long)value == 0)
+            {
+                buffer.AddRange(Enumerable.Repeat<byte>(0, dataType.SizeOf));
+                return;
+            }
+
+            // Byte?
+            if (dataType is AstTypeByte)
+            {
+                buffer.Add(Utils.PackByte(expr.SourcePosition, value));
+                return;
+            }
+
+            // Word?
+            if (dataType is AstTypeWord)
+            {
+                ushort word = Utils.PackWord(expr.SourcePosition, value);
+                buffer.Add((byte)(word & 0xFF));
+                buffer.Add((byte)((word >> 8) & 0xFF));
+                return;
+            }
+
+            // Pack into struct
+            var structDef = dataType as AstStructDefinition;
+            if (structDef != null)
+            {
+                // Initializing with an array?
+                var array = value as ExprNode[];
+                if (array != null)
+                {
+                    // Check length match
+                    if (array.Length != structDef.Fields.Count)
+                    {
+                        throw new CodeException($"Data declaration error: type '{structDef.Name}' requires {structDef.Fields.Count} initialized, not {array.Length}", expr.SourcePosition);
+                    }
+
+                    // Pack all fields
+                    for (int i=0; i<array.Length; i++)
+                    {
+                        PackData(scope, buffer, structDef.Fields[i].Type, structDef.Fields[i].ArraySize, array[i]);
+                    }
+
+                    return;
+                }
+
+                var map = value as Dictionary<string, ExprNode>;
+                if (map != null)
+                {
+                    // Create buffer to pack structure
+                    var data = new byte[dataType.SizeOf];
+                    foreach (var kv in map)
+                    {
+                        // Find the field
+                        var fd = dataType.FindField(kv.Key);
+                        if (fd == null)
+                            throw new CodeException($"Data declaration error: type '{structDef.Name}' doesn't have a field '{kv.Key}'", kv.Value.SourcePosition);
+
+                        // Pack the field
+                        var fieldPack = new List<byte>();
+                        PackData(scope, fieldPack, fd.Type, fd.ArraySize, kv.Value);
+
+                        // Check packed correct number of bytes
+                        if (fieldPack.Count != fd.Type.SizeOf)
+                        {
+                            throw new CodeException($"Internal error packing data declaration (should have generated {fd.Type.SizeOf} but actually generated {fieldPack.Count}", SourcePosition);
+                        }
+
+                        // Pack it
+                        for (int i = 0; i < fieldPack.Count; i++)
+                        {
+                            data[fd.Offset + i] = fieldPack[i];
+                        }
+                    }
+
+                    // Add to buffer
+                    buffer.AddRange(data);
+                    return;
+                }
+
+                throw new CodeException($"Data declaration error: can't pack <{Utils.TypeName(expr)}> as '{structDef.Name}'", expr.SourcePosition);
+            }
+
+            throw new CodeException($"Internal error: don't know how to pack {Utils.TypeName(expr)} into {Utils.TypeName(dataType)}", expr.SourcePosition);
         }
     }
 
@@ -1114,9 +1217,6 @@ namespace yaza
 
         public override void Layout(AstScope currentScope, LayoutContext ctx)
         {
-            if (_strings.Count == 0)
-                return;
-
             // Work out width and height
             int blockWidth = (int)_width.EvaluateNumber(currentScope);
             int blockHeight = (int)_height.EvaluateNumber(currentScope);
@@ -1247,21 +1347,25 @@ namespace yaza
 
     class AstFieldDefinition : AstElement
     {
-        public AstFieldDefinition(SourcePosition pos, string name, string typename)
+        public AstFieldDefinition(SourcePosition pos, string name, string typename, ExprNode initializer)
         {
             SourcePosition = pos;
             _name = name;
             _typename = typename;
+            _initializer = initializer;
         }
 
         string _name;
         string _typename;
         AstType _type;
         int _offset;
+        int _arraySize;
+        ExprNode _initializer;
 
         public string Name => _name;
         public AstType Type => _type;
         public int Offset => _offset;
+        public int ArraySize => _arraySize;
 
         public override void Dump(TextWriter w, int indent)
         {
@@ -1288,8 +1392,20 @@ namespace yaza
             if (_type == null)
                 throw new CodeException($"Invalid type declaration: '{_typename}' is not a type");
 
+            // Resolve the array size
+            _arraySize = 0;
+            foreach (var d in _initializer.EnumData(definingScope))
+            {
+                if (!(d is ExprNodeUninitialized))
+                {
+                    throw new CodeException($"Invalid struct definition: all fields must be declared with uninitialized data", SourcePosition);
+                }
+                _arraySize++;
+            }
+
+
             // Update the size
-            offset += _type.SizeOf;
+            offset += _type.SizeOf * _arraySize;
         }
     }
 
@@ -1370,7 +1486,16 @@ namespace yaza
         }
 
         public override string Name => _name;
-        public override int SizeOf => _sizeof;
+        public override int SizeOf
+        {
+            get
+            {
+                BuildType();
+                return _sizeof;
+            }
+        }
+
+        public List<AstFieldDefinition> Fields => _fields;
 
         string _name;
         int _sizeof = -1;

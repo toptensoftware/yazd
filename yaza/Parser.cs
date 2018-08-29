@@ -219,6 +219,7 @@ namespace yaza
             }
 
             // DB?
+            /*
             if (_tokenizer.TrySkipIdentifier("DB") || _tokenizer.TrySkipIdentifier("DEFB") 
                 || _tokenizer.TrySkipIdentifier("DM") || _tokenizer.TrySkipIdentifier("DEFM"))
             {
@@ -234,6 +235,7 @@ namespace yaza
                 ParseDxExpressions(elem);
                 return elem;
             }
+            */
 
             // DS?
             if (_tokenizer.TrySkipIdentifier("DS") || _tokenizer.TrySkipIdentifier("DEFS"))
@@ -458,8 +460,7 @@ namespace yaza
                         // No field name?  eg: "DB ?"
                         if (_tokenizer.Token == Token.Question)
                         {
-                            structDef.AddField(new AstFieldDefinition(fieldDefPos, null, fieldName));
-                            _tokenizer.SkipToken(Token.Question);
+                            structDef.AddField(new AstFieldDefinition(fieldDefPos, null, fieldName, ParseExpressionList()));
                             _tokenizer.SkipToken(Token.EOL);
                             continue;
                         }
@@ -470,9 +471,8 @@ namespace yaza
                         _tokenizer.Next();
 
                         // Add the field definition
-                        structDef.AddField(new AstFieldDefinition(fieldDefPos, fieldName, fieldType));
+                        structDef.AddField(new AstFieldDefinition(fieldDefPos, fieldName, fieldType, ParseExpressionList()));
 
-                        _tokenizer.SkipToken(Token.Question);
                         _tokenizer.SkipToken(Token.EOL);
                     }
 
@@ -499,12 +499,37 @@ namespace yaza
                     return ParseInstruction(pos, name);
                 }
 
-                // Must be a macro invocation
-                return ParseMacroInvocation(pos, name);
+                // Must be a macro invocation or a data declaration
+                return ParseMacroInvocationOrDataDeclaration(pos, name);
             }
 
             // What?
             throw _tokenizer.Unexpected();
+        }
+
+        ExprNode ParseExpressionList()
+        {
+            var pos = _tokenizer.TokenPosition;
+            var node = ParseExpression();
+            if (_tokenizer.TrySkipToken(Token.Comma))
+            {
+                var concat = new ExprNodeConcat(pos);
+                concat.AddElement(node);
+
+                while (_tokenizer.Token != Token.EOL && _tokenizer.Token != Token.CloseRound)
+                {
+                    concat.AddElement(ParseExpression());
+
+                    if (_tokenizer.TrySkipToken(Token.Comma))
+                        continue;
+                    else
+                        break;
+                }
+
+                node = concat;
+            }
+
+            return node;
         }
 
         AstElement ParseConditional()
@@ -608,6 +633,7 @@ namespace yaza
             return _tokenizer.TokenString;
         }
 
+        /*
         void ParseDxExpressions(AstDxElement elem)
         {
             while (true)
@@ -638,6 +664,7 @@ namespace yaza
                     return;
             }
         }
+        */
 
         AstInstruction ParseInstruction(SourcePosition pos, string name)
         {
@@ -654,9 +681,9 @@ namespace yaza
             }
         }
 
-        AstMacroInvocation ParseMacroInvocation(SourcePosition pos, string name)
+        AstMacroInvocationOrDataDeclaration ParseMacroInvocationOrDataDeclaration(SourcePosition pos, string name)
         {
-            var macroInvocation = new AstMacroInvocation(pos, name);
+            var macroInvocation = new AstMacroInvocationOrDataDeclaration(pos, name);
 
             if (_tokenizer.Token == Token.EOL || _tokenizer.Token == Token.EOF)
                 return macroInvocation;
@@ -685,7 +712,7 @@ namespace yaza
 
         ExprNode ParseArray()
         {
-            var array = new ExprNodeArray(_tokenizer.TokenPosition);
+            var array = new ExprNodeOrderedStructData(_tokenizer.TokenPosition);
             _tokenizer.SkipToken(Token.OpenSquare);
 
             _tokenizer.SkipWhitespace();
@@ -710,7 +737,7 @@ namespace yaza
 
         ExprNode ParseMap()
         {
-            var map = new ExprNodeMap(_tokenizer.TokenPosition);
+            var map = new ExprNodeNamedStructData(_tokenizer.TokenPosition);
             _tokenizer.SkipToken(Token.OpenBrace);
 
             _tokenizer.SkipWhitespace();
@@ -761,25 +788,18 @@ namespace yaza
             // Number literal?
             if (_tokenizer.Token == Token.Number)
             {
-                var node = new ExprNodeLiteral(pos, _tokenizer.TokenNumber);
+                var node = new ExprNodeNumberLiteral(pos, _tokenizer.TokenNumber);
                 _tokenizer.Next();
                 return node;
             }
 
-            // Character literal?
+            // String literal?
             if (_tokenizer.Token == Token.String)
             {
                 var str = _tokenizer.TokenString;
-                if (str.Length != 1)
-                {
-                    throw new CodeException("Only single character strings can be used in strings", _tokenizer.TokenPosition);
-                }
-
                 _tokenizer.Next();
-
-                return new ExprNodeLiteral(pos, str[0]);
+                return new ExprNodeStringLiteral(pos, str);
             }
-
 
             // Defined operator?
             if (_tokenizer.TrySkipIdentifier("defined"))
@@ -841,7 +861,7 @@ namespace yaza
             // Parens?
             if (_tokenizer.TrySkipToken(Token.OpenRound))
             {
-                var node = ParseExpression();
+                var node = ParseExpressionList();
                 _tokenizer.SkipToken(Token.CloseRound);
                 return node;
             }
@@ -1248,7 +1268,7 @@ namespace yaza
         }
 
         // Top level expression (except deref and z80 undocumented subops)
-        ExprNode ParseExpression()
+        ExprNode ParseTernery()
         {
             // Uninitialized data initializer?
             var pos = _tokenizer.TokenPosition;
@@ -1277,6 +1297,19 @@ namespace yaza
             }
 
             return condition;
+        }
+
+        ExprNode ParseExpression()
+        {
+            var expr = ParseTernery();
+
+            var pos = _tokenizer.TokenPosition;
+            if (_tokenizer.TrySkipIdentifier("DUP"))
+            {
+                return new ExprNodeDup(pos, expr, ParseTernery());
+            }
+
+            return expr;
         }
 
         ExprNode ParseOperandExpression()
@@ -1347,6 +1380,10 @@ namespace yaza
                 case "ERROR":
                 case "WARNING":
                 case "RADIX":
+                case "STRUCT":
+                case "ENDS":
+                case "BYTE":
+                case "WORD":
                     return true;
             }
 

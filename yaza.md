@@ -222,6 +222,14 @@ VRAMSIZE    EQU     0x400
 ENDOFVRAM   EQU     (VRAM+VRAMSIZE)
 ~~~
 
+The name of an EQU definition can optionally be followed by a colon:
+
+~~~
+VRAM:       EQU     0xF000
+~~~
+
+(but the definition must be on the same line as the name)
+
 ## Parameterized EQU Directives
 
 EQU directives can be parameterized:
@@ -384,6 +392,64 @@ The `incbin` embeds binary data from a file:
 ```
 
 In both cases the included file is searched for relative to the file containing the include/incbin directive and if not found any directories specified by the `--include` command line option are searched.
+
+
+## STRUCT Directives
+
+The `STRUCT` directive can be used to define structured data:
+
+~~~
+RECT STRUCT
+    LEFT    dw  ?
+    TOP     dw  ?
+    WIDTH   dw  ?
+    HEIGHT  dw  ?
+ENDS
+~~~
+
+The fields of the the struct can be accessed from any expression and evaluate to the offset of the member field from the start of the struct:
+
+~~~
+    LD      A,RECT.TOP      ; equivalent to "LD A,2"
+~~~
+
+Structs are often used with the IX and IY registers:
+
+~~~
+    LD      IX,addressOfARectStructure
+    LD		E,(IX+RECT.WIDTH)
+    LD		D,(IX+RECT.WIDTH+1)
+~~~
+
+The `sizeof` operator can be used to get the size of a `STRUCT`:
+
+~~~
+    ; Move to next RECT
+    LD		DE,sizeof(RECT)
+    ADD		IX,DE
+~~~
+
+STRUCTs can be nested and declaration order doesn't matter:
+
+~~~
+
+PLAYER  STRUCT
+    FRAME   DB      ?
+    POS     COORD   ?           ; See below
+ENDS
+
+ALIEN   STRUCT
+    MODE    DB      ?
+    POS     COORD   ?           ; See below
+ENDS
+
+COORD   STRUCT
+    X       DB      ?
+    Y       DB      ?
+ENDS
+
+    LD  A,(IX+ALIEN.POS.Y)      ; "LD A,(IX+2)"
+~~~
 
 
 ## DEFBITS and BITMAP Directive

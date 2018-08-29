@@ -22,6 +22,50 @@ namespace yaza
             return name;
         }
 
+        public static byte PackByte(SourcePosition pos, object value)
+        {
+            if (value is long)
+                return PackByte(pos, (long)value);
+            Log.Error(pos, $"Can't convert {Utils.TypeName(value)} to byte");
+            return 0xFF;
+        }
+
+        public static ushort PackWord(SourcePosition pos, object value)
+        {
+            if (value is long)
+                return PackWord(pos, (long)value);
+            Log.Error(pos, $"Can't convert {Utils.TypeName(value)} to word");
+            return 0xFF;
+        }
+
+        public static byte PackByte(SourcePosition pos, long value)
+        {
+            // Check range (yes, sbyte and byte)
+            if (value < sbyte.MinValue || value > byte.MaxValue)
+            {
+                Log.Error(pos, $"value out of range: {value} (0x{value:X}) doesn't fit in 8-bits");
+                return 0xFF;
+            }
+            else
+            {
+                return (byte)(value & 0xFF);
+            }
+        }
+
+        public static ushort PackWord(SourcePosition pos, long value)
+        {
+            // Check range (yes, short and ushort)
+            if (value < short.MinValue || value > ushort.MaxValue)
+            {
+                Log.Error(pos, $"value out of range: {value} (0x{value:X}) doesn't fit in 16-bits");
+                return 0xFFFF;
+            }
+            else
+            {
+                return (ushort)(value & 0xFFFF);
+            }
+        }
+
         public static ushort ParseUShort(string str)
 		{
 			try
