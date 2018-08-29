@@ -636,6 +636,14 @@ namespace yaza
                 return AddressingMode.Invalid;
         }
 
+        public override IEnumerable<ExprNode> EnumData(AstScope scope)
+        {
+            if (Condition.EvaluateNumber(scope) != 0)
+                return TrueValue.EnumData(scope);
+            else
+                return FalseValue.EnumData(scope);
+        }
+
     }
 
     public class ExprNodeIdentifier : ExprNode

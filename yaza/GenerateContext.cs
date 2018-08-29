@@ -102,7 +102,7 @@ namespace yaza
                         ListFile.WriteLine();
                     ListFile.Write($"{_unlistedBytesAddress + b:X4}: ");
                 }
-                ListFile.Write($"{_unlistedBytes[b]:X2} ");
+                ListFile.Write($"{FormatByte(_unlistedBytes[b])} ");
             }
             ListFile.WriteLine();
             _unlistedBytes.Clear();
@@ -179,10 +179,18 @@ namespace yaza
         }
 
         bool _listEnabled = true;
-        List<byte> _unlistedBytes = new List<byte>();
+        List<byte?> _unlistedBytes = new List<byte?>();
         int _unlistedBytesAddress;
 
-        public void Emit(byte val)
+        string FormatByte(byte? val)
+        {
+            if (val.HasValue)
+                return $"{val.Value:X2}";
+            else
+                return "??";
+        }
+
+        public void Emit(byte? val)
         {
             if (_listEnabled)
             {
@@ -190,7 +198,7 @@ namespace yaza
                     WriteListingText($"{ip:X4}: ");
 
                 if (_listColumnPos + 3 < ListColumnWidth)
-                    WriteListingText($"{val:X2} ");
+                    WriteListingText($"{FormatByte(val)} ");
                 else
                 {
                     if (_unlistedBytes.Count == 0)
@@ -210,16 +218,18 @@ namespace yaza
 
             if (op < _outputBytes.Count)
             {
-                _outputBytes[op] = val;
+                // Don't overwrite old data if NULL
+                if (val != null)
+                    _outputBytes[op] = val.Value;
             }
             else if (op == _outputBytes.Count)
             {
-                _outputBytes.Add(val);
+                _outputBytes.Add(val ?? 0xFF);
             }
             else
             {
-                _outputBytes.AddRange(Enumerable.Repeat<byte>(0, op - _outputBytes.Count));
-                _outputBytes.Add(val);
+                _outputBytes.AddRange(Enumerable.Repeat<byte>(0xFF, op - _outputBytes.Count));
+                _outputBytes.Add(val ?? 0xFF);
             }
 
             op++;
@@ -228,38 +238,30 @@ namespace yaza
 
         bool _truncateErrorShown;
 
-        public void Emit(ushort val)
+        public void Emit(ushort? val)
         {
-            Emit((byte)(val & 0xFF));
-            Emit((byte)((val >> 8) & 0xFF));
+            if (val.HasValue)
+            {
+                Emit((byte?)(val.Value & 0xFF));
+                Emit((byte?)((val.Value >> 8) & 0xFF));
+            }
+            else
+            {
+                Emit((byte?)null);
+                Emit((byte?)null);
+            }
         }
 
         // Emit any 8-bit value (must be between -128 and 255)
         public void Emit8(SourcePosition pos, long value)
         {
-            // Check range (yes, sbyte and byte)
-            if (value < sbyte.MinValue || value > byte.MaxValue)
-            {
-                Log.Error(pos, $"value out of range: {value} (0x{value:X}) doesn't fit in 8-bits");
-                Emit(0xFF);
-                return;
-            }
-
-            Emit((byte)(value & 0xFF));
+            Emit(Utils.PackByte(pos, value));
         }
 
         // Emit any 16-bit vaue (must be between -16384 and 65535)
         public void Emit16(SourcePosition pos, long value)
         {
-            // Check range (yes, short and ushort)
-            if (value < short.MinValue || value > ushort.MaxValue)
-            {
-                Log.Error(pos, $"value out of range: {value} (0x{value:X}) doesn't fit in 16-bits");
-                Emit(0xFFFF);
-                return;
-            }
-
-            Emit((ushort)(value & 0xFFFF));
+            Emit(Utils.PackWord(pos, value));
         }
 
         // Emit an array of bytes
@@ -276,21 +278,19 @@ namespace yaza
             _listEnabled = wasListEnabled;
         }
 
-        // Emit a signed byte (must be between -128 and 127)
-        /*
-        public void EmitSignedByte(SourcePosition pos, int value)
+        // Emit an array of bytes
+        public void EmitBytes(byte?[] bytes, bool list)
         {
-            // Check range (yes, sbyte and byte)
-            if (value < sbyte.MinValue || value > sbyte.MaxValue)
+            bool wasListEnabled = _listEnabled;
+            _listEnabled = list;
+
+            for (int i = 0; i < bytes.Length; i++)
             {
-                Log.Error(pos, $"value out of range: {value} (0x{value:X}) must be between {sbyte.MinValue} and {sbyte.MaxValue}");
-                Emit(0xFF);
-                return;
+                Emit(bytes[i]);
             }
 
-            Emit((byte)(value & 0xFF));
+            _listEnabled = wasListEnabled;
         }
-        */
 
         // Emit a relative offset where addr is the address
         // And the current instruction address is current IP

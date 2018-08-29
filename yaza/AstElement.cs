@@ -401,24 +401,15 @@ namespace yaza
                 ctx.ListToInclusive(SourcePosition);
             }
 
-            var bytes = new byte[_bytes];
+            var bytes = new byte?[_bytes];
 
             if (ValueExpression != null)
             {
-                var value = ValueExpression.EvaluateNumber(currentScope);
+                var value = Utils.PackByte(ValueExpression.SourcePosition, ValueExpression.EvaluateNumber(currentScope));
 
-                // Check range (yes, sbyte and byte)
-                if (value < sbyte.MinValue || value > byte.MaxValue)
+                for (int i = 0; i < bytes.Length; i++)
                 {
-                    Log.Error(SourcePosition, $"value out of range: {value} (0x{value:X}) doesn't fit in 8-bits");
-                }
-                else
-                {
-                    var val = (byte)(value & 0xFF);
-                    for (int i = 0; i < bytes.Length; i++)
-                    {
-                        bytes[i] = val;
-                    }
+                    bytes[i] = value;
                 }
             }
 
@@ -945,7 +936,7 @@ namespace yaza
             if (_dataType != null)
             {
                 // Setup storage for data
-                var data = new List<byte>();
+                var data = new List<byte?>();
 
                 // Pack data elements
                 bool anyPackErrors = false;
@@ -987,7 +978,7 @@ namespace yaza
             }
         }
 
-        void PackData(AstScope scope, List<byte> buffer, AstType dataType, int arraySize, ExprNode expr)
+        void PackData(AstScope scope, List<byte?> buffer, AstType dataType, int arraySize, ExprNode expr)
         {
             // Packing into an array?
             if (arraySize != 1)
@@ -1008,7 +999,7 @@ namespace yaza
                 // Fill the rest with zero
                 if (packCount < arraySize)
                 {
-                    buffer.AddRange(Enumerable.Repeat<byte>(0, dataType.SizeOf * (arraySize - packCount)));
+                    buffer.AddRange(Enumerable.Repeat<byte?>(0, dataType.SizeOf * (arraySize - packCount)));
                 }
                 return;
             }
@@ -1019,14 +1010,14 @@ namespace yaza
             // Uninitialized data?
             if (value is ExprNodeUninitialized)
             {
-                buffer.AddRange(Enumerable.Repeat<byte>(0xFF, dataType.SizeOf));
+                buffer.AddRange(Enumerable.Repeat<byte?>(null, dataType.SizeOf));
                 return;
             }
 
             // Zero fill data?
             if ((value is long) && (long)value == 0)
             {
-                buffer.AddRange(Enumerable.Repeat<byte>(0, dataType.SizeOf));
+                buffer.AddRange(Enumerable.Repeat<byte?>(0, dataType.SizeOf));
                 return;
             }
 
@@ -1057,7 +1048,7 @@ namespace yaza
                     // Check length match
                     if (array.Length != structDef.Fields.Count)
                     {
-                        throw new CodeException($"Data declaration error: type '{structDef.Name}' requires {structDef.Fields.Count} initialized, not {array.Length}", expr.SourcePosition);
+                        throw new CodeException($"Data declaration error: type '{structDef.Name}' requires {structDef.Fields.Count} initializers, but {array.Length} specified", expr.SourcePosition);
                     }
 
                     // Pack all fields
@@ -1073,7 +1064,7 @@ namespace yaza
                 if (map != null)
                 {
                     // Create buffer to pack structure
-                    var data = new byte[dataType.SizeOf];
+                    var data = new byte?[dataType.SizeOf];
                     foreach (var kv in map)
                     {
                         // Find the field
@@ -1082,7 +1073,7 @@ namespace yaza
                             throw new CodeException($"Data declaration error: type '{structDef.Name}' doesn't have a field '{kv.Key}'", kv.Value.SourcePosition);
 
                         // Pack the field
-                        var fieldPack = new List<byte>();
+                        var fieldPack = new List<byte?>();
                         PackData(scope, fieldPack, fd.Type, fd.ArraySize, kv.Value);
 
                         // Check packed correct number of bytes

@@ -2,22 +2,22 @@
   - TYPE: 'BYTE'
   - TYPE: 'WORD'
   - CONTAINER test.asm (test.asm 1,1)
-    - STRUCT: 'ALIEN' (test.asm 3,1)
-      - FIELD: 'POS' COORD (test.asm 4,5)
-      - FIELD: 'MODE' DB (test.asm 5,5)
-    - STRUCT: 'COORD' (test.asm 8,1)
-      - FIELD: 'X' DB (test.asm 9,5)
-      - FIELD: 'Y' DB (test.asm 10,5)
-    - STRUCT: 'PLAYER' (test.asm 14,1)
-      - FIELD: 'POS' COORD (test.asm 15,5)
-      - FIELD: 'FRAME' DB (test.asm 16,5)
-    - STRUCT: 'HIGHSCORE' (test.asm 19,1)
-      - FIELD: 'NAME' DB (test.asm 20,2)
-      - FIELD: 'SCORE' DW (test.asm 21,2)
+    - STRUCT: 'HIGHSCORE' (test.asm 1,1)
+      - FIELD: 'NAME' DB (test.asm 2,2)
+      - FIELD: 'SCORE' DW (test.asm 3,2)
+    - STRUCT: 'ALIEN' (test.asm 8,1)
+      - FIELD: 'POS' COORD (test.asm 9,5)
+      - FIELD: 'MODE' DB (test.asm 10,5)
+    - STRUCT: 'COORD' (test.asm 13,1)
+      - FIELD: 'X' DB (test.asm 14,5)
+      - FIELD: 'Y' DB (test.asm 15,5)
+    - STRUCT: 'PLAYER' (test.asm 19,1)
+      - FIELD: 'POS' COORD (test.asm 20,5)
+      - FIELD: 'FRAME' DB (test.asm 21,5)
     - HIGHSCORE (test.asm 24,2)
       - ordered struct data
-        - string literal `Brad`
-        - number literal 23
+        - number literal 99
+        - number literal 1
     - DB (test.asm 26,2)
       - operator *
         - number literal 5

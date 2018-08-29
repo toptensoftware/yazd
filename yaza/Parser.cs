@@ -995,42 +995,6 @@ namespace yaza
             }
         }
 
-        /*
-        ExprNode ParseAdd()
-        {
-            var LHS = ParseMultiply();
-
-            // Add or subtract?
-            if (_tokenizer.Token != Token.Plus && _tokenizer.Token != Token.Minus)
-            {
-                return LHS;
-            }
-
-            // Create add LTR chain
-            var ltr = new ExprNodeAdd();
-            ltr.AddNode(LHS);
-
-            // Build chain of add nodes
-            while (true)
-            {
-                if (_tokenizer.TrySkipToken(Token.Plus))
-                {
-                    ltr.AddNode(ParseMultiply());
-                }
-                else if (_tokenizer.TrySkipToken(Token.Minus))
-                {
-                    ltr.AddNode(new ExprNodeUnary() {
-                        RHS = ParseMultiply(),
-                        OpName = "-",
-                        Operator = ExprNodeUnary.OpNegate
-                    });
-                }
-                else
-                    return ltr;
-            }
-        }
-        */
-
         // Shift
         ExprNode ParseShift()
         {
@@ -1064,10 +1028,23 @@ namespace yaza
             }
         }
 
+        ExprNode ParseDup()
+        {
+            var expr = ParseShift();
+
+            var pos = _tokenizer.TokenPosition;
+            if (_tokenizer.TrySkipIdentifier("DUP"))
+            {
+                return new ExprNodeDup(pos, expr, ParseTernery());
+            }
+
+            return expr;
+        }
+
         // Relational
         ExprNode ParseRelational()
         {
-            var LHS = ParseShift();
+            var LHS = ParseDup();
 
             while (true)
             {
@@ -1077,7 +1054,7 @@ namespace yaza
                     LHS = new ExprNodeBinary(pos)
                     {
                         LHS = LHS,
-                        RHS = ParseShift(),
+                        RHS = ParseDup(),
                         OpName = "<=",
                         Operator = ExprNodeBinary.OpLE,
                     };
@@ -1087,7 +1064,7 @@ namespace yaza
                     LHS = new ExprNodeBinary(pos)
                     {
                         LHS = LHS,
-                        RHS = ParseShift(),
+                        RHS = ParseDup(),
                         OpName = ">=",
                         Operator = ExprNodeBinary.OpGE,
                     };
@@ -1097,7 +1074,7 @@ namespace yaza
                     LHS = new ExprNodeBinary(pos)
                     {
                         LHS = LHS,
-                        RHS = ParseShift(),
+                        RHS = ParseDup(),
                         OpName = ">",
                         Operator = ExprNodeBinary.OpGT,
                     };
@@ -1107,7 +1084,7 @@ namespace yaza
                     LHS = new ExprNodeBinary(pos)
                     {
                         LHS = LHS,
-                        RHS = ParseShift(),
+                        RHS = ParseDup(),
                         OpName = "<",
                         Operator = ExprNodeBinary.OpLT,
                     };

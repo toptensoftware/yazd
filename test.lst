@@ -1,4 +1,9 @@
-                                
+                                HIGHSCORE STRUCT
+                                	NAME	DB	20 dup ?
+                                	SCORE	DW  ?
+                                ENDS
+                                
+                                
                                 
                                 ALIEN   STRUCT
                                     POS     COORD   ?
@@ -16,34 +21,27 @@
                                     FRAME   DB      ?
                                 ENDS
                                 
-                                HIGHSCORE STRUCT
-                                	NAME	DB	30 dup ?,?
-                                	SCORE	DW  ?
-                                ENDS
-                                
-0000: 42 72 61 64 00 00 00 00   	HIGHSCORE	[ "Brad", 23 ]
+0000: 63 00 00 00 00 00 00 00   	HIGHSCORE	[ 99, 1 ]
 0008: 00 00 00 00 00 00 00 00 
-0010: 00 00 00 00 00 00 00 00 
-0018: 00 00 00 00 00 00 00 17 
-0020: 00 
+0010: 00 00 00 00 01 00 
                                 
-0021: 0F                        	DB  5*3
-0022: 0A 00                     	DW	10
-0024: 57 00 6F 00 61 00 68 00   	DW  "Woah!",0
-002C: 21 00 00 00 
-0030: 48 65 6C 6C 6F 00 48 65   	DB	3 DUP ('Hello', 0)
-0038: 6C 6C 6F 00 48 65 6C 6C 
-0040: 6F 00 
+0016: 0F                        	DB  5*3
+0017: 0A 00                     	DW	10
+0019: 57 00 6F 00 61 00 68 00   	DW  "Woah!",0
+0021: 21 00 00 00 
+0025: 48 65 6C 6C 6F 00 48 65   	DB	3 DUP ('Hello', 0)
+002D: 6C 6C 6F 00 48 65 6C 6C 
+0035: 6F 00 
                                 
-0042: FF                        	DB		?
-0043: FF FF                     	COORD	?
+0037: ??                        	DB		?
+0038: ?? ??                     	COORD	?
                                 
-0045: FF FF FF                  	ALIEN	?
+003A: ?? ?? ??                  	ALIEN	?
                                 
-0048: 03 09 01                  	ALIEN { 
+003D: 03 09 01                  	ALIEN { 
                                 		MODE: 1, 
                                 		POS: [3,9]
                                 	}
                                 
 
-004B:
+0040:

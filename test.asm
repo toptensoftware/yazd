@@ -1,3 +1,8 @@
+HIGHSCORE STRUCT
+	NAME	DB	20 dup ?
+	SCORE	DW  ?
+ENDS
+
 
 
 ALIEN   STRUCT
@@ -16,12 +21,7 @@ PLAYER  STRUCT
     FRAME   DB      ?
 ENDS
 
-HIGHSCORE STRUCT
-	NAME	DB	30 dup ?,?
-	SCORE	DW  ?
-ENDS
-
-	HIGHSCORE	[ "Brad", 23 ]
+	HIGHSCORE	[ 99, 1 ]
 
 	DB  5*3
 	DW	10
