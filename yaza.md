@@ -40,7 +40,7 @@ Example:
 
 ## Case Insensitive
 
-YAZA is case insensitive for everything except DEFBITS definitions.  Instruction mnemonics, registers, condition flags, symbols etc... can all be specified in any case and symbol look ups are case insensitive.
+YAZA is case insensitive for everything except `DEFBITS` definitions.  Instruction mnemonics, registers, condition flags, symbols etc... can all be specified in any case and symbol lookups are case insensitive.
 
 
 ## Labels
@@ -62,7 +62,7 @@ loop:
         DJNZ loop
 ~~~
 
-## Numbers
+## Numeric Literals
 
 Various numbers formats are supported:
 
@@ -84,8 +84,8 @@ Various numbers formats are supported:
     LD  HL,&hFFFF       ; '&h' prefix for hex
     LD  HL,&n9999       ; '&n' prefix for decimal
     LD  HL,&d9999       ; '&n' prefix for decimal
-    LD  HL,&o7777       ; '&o' prefix for decimal
-    LD  HL,&t7777       ; '&t' prefix for decimal
+    LD  HL,&o7777       ; '&o' prefix for octal
+    LD  HL,&t7777       ; '&t' prefix for octal
     LD  HL,&b1001       ; '&b' prefix for binary
 ~~~
 
@@ -101,27 +101,42 @@ The `RADIX` directive can be used to set the default radix to either 2, 8, 10 or
 
 Note that when the hex radix is selected, numbers must still start with a digit which might mean introducing a leading `0` (ie: `0ff` not `ff`)
 
+## String Literals
+
+String literals are declared using either the single or double quote delimiter.  
+
+    DB  "Hello World\n"
+
+The following C-style escapes can be used:
+
+    \" \' \\ \b \f \n \r \t
+
+and `\u` can be used to declare unicode characters in hex:
+
+    "\u000D"    ; carriage return
+
 ## Expressions
 
-The following expression operators are supported (shown in order of operation)
+The following operators are supported in expressions (shown in order of operation)
 
 ```
-( ) defined     ; grouping and the `defined` operator
-~ ! - +         ; bitwise complement, logical not, negate, postive
-* / %           ; multiply, divide, modulus
-+ -             ; add, subtract
-<< >>           ; shift left, shift right
-<= >= < >       ; less-equal, greater-equal, less, greater
-== !=           ; equal, not equal
-&               ; bitwise AND
-^               ; bitwise XOR
-|               ; bitwise OR
-&&              ; logical AND
-||              ; logical OR
-? :             ; ternery operator
+? ( ) [ ] { } .     ; uninit data, grouping, orderd/named struct data and member operator
+~ ! - +             ; bitwise complement, logical not, negate, positive
+* / %               ; multiply, divide, modulus
++ -                 ; add, subtract
+DUP                 ; duplicated data operator
+<< >>               ; shift left, shift right
+<= >= < >           ; less-equal, greater-equal, less, greater
+== !=               ; equal, not equal
+&                   ; bitwise AND
+^                   ; bitwise XOR
+|                   ; bitwise OR
+&&                  ; logical AND
+||                  ; logical OR
+? :                 ; ternery operator
 ```
 
-All numeric expressions are evaluated as 32-bit signed integers.  An error will be generated if the final resulting value does fit in the target operand.  For boolean (aka logical) operands, zero is treated as false and any non-zero value is treated as true.
+All numeric expressions are evaluated as 64-bit signed integers.  An error will be generated if the final resulting value does fit in the target operand.  For boolean (aka logical) operands, zero is treated as false and any non-zero value is treated as true.
 
 Note that parentheses are used for two purposes - expression group and pointer dereferencing.
 
@@ -129,7 +144,7 @@ eg: dereferencing:
 
     LD      A,(IX+0)            ; () means dereference pointer
 
-eg: expresion grouping:
+eg: expression grouping:
 
     LD      A, 5*(23+10)        ; () means 23+10 before *
 
@@ -142,7 +157,10 @@ Instead, use this:
     LD      HL,0+(23+5)*10      ; This switches the expression parser out of dereference mode
 
 
-The `defined` operator checks if a symbol has been defined.
+
+## The DEFINED Operator
+
+The `defined` operator checks if a symbol (either as a label, macro, equ or data type) has been defined.
 
 eg:
 
@@ -164,7 +182,7 @@ The ORG directive changes the currently perceived CPU address:
 
 ## SEEK Directive
 
-The seek directive lets you rewind the output position of the generated code to overwrite previously generated data
+The seek directive lets you rewind the output position of the generated code to overwrite previously generated data:
 
 ~~~
     SEEK    0           ; Rewind to the start of the file
@@ -173,30 +191,8 @@ The seek directive lets you rewind the output position of the generated code to 
 The current output position is available through the special variable `$ofs` (as in "offset").
 
 
-Typically used to patch over `incbin`ed data.
+Typically used to patch over data imported with the `incbin` directive.
 
-
-## DB and DW Data Directives
-
-Byte (8-bit) data can be declared with the `DB`, `DEFB`, `DM` or `DEFM` (they're all functional identical). 
-
-~~~
-PLAYERX:    DB  0
-GAMEOVER:   DB  "GAME OVER",0
-~~~
-
-For word (16-bit) data use the `DW` or `DEFW` directive:
-
-~~~
-SCORE:      DW  0
-HIGHSCRORE: DW  0
-~~~
-
-You can also reserve a specified number bytes with the `DS` or `DEFS` directive:
-
-~~~
-SCRATCHPAD: DS  1024
-~~~
 
 ## EQU Directive
 
@@ -307,7 +303,7 @@ else
 endif
 ~~~
 
-Important:  each branch of the `if` directive (even those that evaluate to false) must be syntactically correct  code - `if` directives can't be used to "commment out" code.
+Important:  each branch of the `if` directive (even those that evaluate to false) must be syntactically correct - `if` directives can't be used to "commment out" invalid code.
 
 ## PROC Directive
 
@@ -343,7 +339,7 @@ Note: although `PROC`'s are typically used to define function scopes, they don't
 
 ## MACRO Directive
 
-Macros let you define repeatable pieces of code:
+Macros lets you define reusable pieces of code:
 
 ~~~
 ; Macro to zero fill memory
@@ -377,22 +373,48 @@ ENDM
     SAVEREGS(ix,iy,hl)  ; Will invoke the second macro
 ~~~
 
-## INCLUDE and INCBIN Directives
+## Data Declaration Directives
 
-The `include` directive brings in the contents of another asm file:
+Byte (8-bit) data can be declared with the `BYTE`, `DB`, `DEFB`, `DM` or `DEFM` (they're all functionally identical). Strings are emitted as UTF8:
 
-```
-    include "definitions.asm"
-```
+~~~
+PLAYERX:    DB  0
+GAMEOVER:   DB  "GAME OVER",0
+~~~
 
-The `incbin` embeds binary data from a file:
+For word (16-bit) data use the `WORD`, `DW` or `DEFW` directive:
 
-```
-    incbin "levelmap.bin"
-```
+~~~
+SCORE:      DW  0
+HIGHSCRORE: DW  0
+~~~
 
-In both cases the included file is searched for relative to the file containing the include/incbin directive and if not found any directories specified by the `--include` command line option are searched.
+Using strings with 16-bit data emits UTF16:
 
+~~~
+            DW  "Hello World"           ; Will be emitted as UTF16
+~~~
+
+For uninitialized data, use the special value `?`.  Uninititalized data will generally be written to output as 0xFF except when the `SEEK` operator has been used to rewind the output
+position, in which case it leaves the underlying data unaffected.
+
+~~~
+WORKINGVAR: DW  ?
+~~~
+
+For repeated data, use the `DUP` operator
+
+~~~
+SPACES:     DB 30 DUP ' '
+~~~
+
+or combine with the value concatenation operator `( )` to generate repeated patterns:
+
+~~~
+PATTERN:    DB 30 DUP (1,2,3)           // Repeat the values 1,2,3 for 30 times
+~~~
+
+See also `STRUCT` for initialization of structured data.
 
 ## STRUCT Directives
 
@@ -400,10 +422,21 @@ The `STRUCT` directive can be used to define structured data:
 
 ~~~
 RECT STRUCT
-    LEFT    dw  ?
-    TOP     dw  ?
-    WIDTH   dw  ?
-    HEIGHT  dw  ?
+    LEFT    DW  ?
+    TOP     DW  ?
+    WIDTH   DW  ?
+    HEIGHT  DW  ?
+ENDS
+~~~
+
+You can use any form of the built-in type names.  eg: this is equivalent:
+
+~~~
+RECT STRUCT
+    LEFT    WORD  ?
+    TOP     WORD  ?
+    WIDTH   WORD  ?
+    HEIGHT  WORD  ?
 ENDS
 ~~~
 
@@ -434,25 +467,147 @@ STRUCTs can be nested and declaration order doesn't matter:
 ~~~
 
 PLAYER  STRUCT
-    FRAME   DB      ?
+    FRAME   BYTE    ?
     POS     COORD   ?           ; See below
 ENDS
 
 ALIEN   STRUCT
-    MODE    DB      ?
+    MODE    BYTE    ?
     POS     COORD   ?           ; See below
 ENDS
 
 COORD   STRUCT
-    X       DB      ?
-    Y       DB      ?
+    X       BYTE    ?
+    Y       BYTE    ?
 ENDS
 
     LD  A,(IX+ALIEN.POS.Y)      ; "LD A,(IX+2)"
 ~~~
 
+STRUCTs can also contain array declarations using the `DUP` operator:
 
-## DEFBITS and BITMAP Directive
+~~~
+HIGHSCOREINFO   STRUCT
+    NAME    DB      30 DUP ?    ; 30 characters for name
+    SCORE   DW      ?
+ENDS
+~~~
+
+Note that all field declarations must be made using the uninitialized data value `?`.
+
+## Declaring STRUCT Data
+
+To declare STRUCT data, use the name of the structure and one or more initialization expressions.
+
+For uninitialized data, use the special value `?`.  This reserves enough room for the structure
+
+~~~
+PlayerInfo:  PLAYER     ?
+~~~
+
+For zeroed data, use the value `0`:
+
+~~~
+PlayerInfo:  PLAYER     0
+~~~
+
+To declare multiple consecutive instances, either separate values by commas:
+
+~~~
+Aliens:      ALIEN       ?,?,?,?     ; 4 uninitialized alien instances
+~~~
+
+Or, you can use the `DUP` operator
+
+~~~
+Aliens:      ALIEN       4 DUP 0     ; 4 zeroed alien instances
+~~~
+
+The `[ ]` operators can be used to declare ordered initialization data.   There should be
+one element for each field in the target type:
+
+~~~
+PlayerInfo:  PLAYER     [ 2, [10, 20]]  ; frame = 2, POS.X = 10, POS.Y = 20
+~~~
+
+The `{ }` operators can be used to declare named initialization data.  You don't need to specify all members - unspecified members will be zero filled.
+
+~~~
+PlayerInfo:  PLAYER     { FRAME: 2, POS: { X: 20, Y: 30} }
+~~~
+
+You can combine the `[ ]` and `{ }` operators, and you can split data declarations over multiple lines (although the opening `[` or `{` must be on the same line as the struct type name)
+
+~~~
+PlayerInfo:  PLAYER     {   ; Named declaration
+            FRAME: 2, 
+            POS: [20,30]    ; Nested ordered declaration
+            }
+~~~
+
+To initialize array elements, use either a string:
+
+~~~
+HIGHSCOREINFO   STRUCT
+    NAME    DB      30 DUP ?    ; 30 characters for name
+    SCORE   DW      ?
+ENDS
+
+HighScore: HIGHSCOREINFO [ "YAZA", 100 ]
+~~~
+
+or the DUP operator:
+
+~~~
+HighScore: HIGHSCOREINFO [ 10 DUP 'A', 100 ]
+~~~
+
+or the `( )` value concatenation operator:
+
+~~~
+HighScore: HIGHSCOREINFO [ (1,2,3), 100 ]
+~~~
+
+or a combination:
+
+~~~
+HighScore: HIGHSCOREINFO [ ("YAZA",3 DUP '!'), 100 ]
+~~~
+
+You don't need to specify values for every array element (the rest of the array will be filled with 0). Specifying too many initializers for an array will generate an error.
+
+## DS and DEFS Directives
+
+You can reserve space for a specified number bytes with the `DS` or `DEFS` directive:
+
+~~~
+SCRATCHPAD: DS  1024            ; Same as "DB  1024 DUP ?"
+~~~
+
+And you can optionally initialize the data:
+
+~~~
+SCRATCHPAD: DS  1024,33         ; Same as "DB  1024 DUP 33"
+~~~
+
+## INCLUDE and INCBIN Directives
+
+The `include` directive brings in the contents of another asm file:
+
+```
+    include "definitions.asm"
+```
+
+The `incbin` embeds binary data from a file:
+
+```
+    incbin "levelmap.bin"
+```
+
+In both cases the included file is searched for relative to the file containing the include/incbin directive and if not found any directories specified by the `--include` command line option are searched.
+
+
+## DEFBITS and BITMAP Directives
 
 The DEFBITS and BITMAP directives can be used to define bitmap style data directly in your source files.  This can be used for defining PCG character sets, level maps or any other form of bitmap style data.
 
@@ -532,7 +687,7 @@ Instead of using a string bit pattern in DEFBITS, you can also use a bit width e
 ~~~
     DEFBITS "X", 4, 1          ; Equivalent to "0001" (value = 1, width = 4 bits)
     DEFBITS "Y", 4, 2          ; Equivalent to "0010"
-    DEFBITS "Z", 4, 3          ; Equivalent to "0010"
+    DEFBITS "Z", 4, 3          ; Equivalent to "0011"
 ~~~
 
 Unlike other definitions and symbols, DEFBITS pattern can be redefined:
@@ -596,7 +751,7 @@ Results in swapped bit order:
 
 
 
-## ERROR and WARNING  directives
+## ERROR and WARNING Directives
 
 The `ERROR` and `WARNING` directives can be used to generate error and warning messages:
 

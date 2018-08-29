@@ -21,7 +21,7 @@ PLAYER  STRUCT
     FRAME   DB      ?
 ENDS
 
-	HIGHSCORE	[ 99, 1 ]
+	HIGHSCORE	[ ("YAZA",3 DUP '!'), 1 ]
 
 	DB  5*3
 	DW	10

@@ -710,7 +710,7 @@ namespace yaza
             }
         }
 
-        ExprNode ParseArray()
+        ExprNode ParseOrderedStructData()
         {
             var array = new ExprNodeOrderedStructData(_tokenizer.TokenPosition);
             _tokenizer.SkipToken(Token.OpenSquare);
@@ -735,7 +735,7 @@ namespace yaza
             return array;
         }
 
-        ExprNode ParseMap()
+        ExprNode ParseNamedStructData()
         {
             var map = new ExprNodeNamedStructData(_tokenizer.TokenPosition);
             _tokenizer.SkipToken(Token.OpenBrace);
@@ -868,11 +868,11 @@ namespace yaza
 
             // Array?
             if (_tokenizer.Token == Token.OpenSquare)
-                return ParseArray();
+                return ParseOrderedStructData();
 
             // Map?
             if (_tokenizer.Token == Token.OpenBrace)
-                return ParseMap();
+                return ParseNamedStructData();
 
             throw new CodeException($"syntax error in expression: '{Tokenizer.DescribeToken(_tokenizer.Token)}'", _tokenizer.TokenPosition);
         }

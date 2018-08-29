@@ -16,7 +16,13 @@
       - FIELD: 'FRAME' DB (test.asm 21,5)
     - HIGHSCORE (test.asm 24,2)
       - ordered struct data
-        - number literal 99
+        - concat
+          - string literal `YAZA`
+          - dup
+            - count:
+              - number literal 3
+            - value:
+              - string literal `!`
         - number literal 1
     - DB (test.asm 26,2)
       - operator *
