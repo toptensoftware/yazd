@@ -1024,6 +1024,9 @@ namespace yaza
             // Byte?
             if (dataType is AstTypeByte)
             {
+                while (value is ExprNode)
+                    value = ((ExprNode)value).Evaluate(scope);
+
                 buffer.Add(Utils.PackByte(expr.SourcePosition, value));
                 return;
             }
@@ -1031,6 +1034,9 @@ namespace yaza
             // Word?
             if (dataType is AstTypeWord)
             {
+                while (value is ExprNode)
+                    value = ((ExprNode)value).Evaluate(scope);
+
                 ushort word = Utils.PackWord(expr.SourcePosition, value);
                 buffer.Add((byte)(word & 0xFF));
                 buffer.Add((byte)((word >> 8) & 0xFF));

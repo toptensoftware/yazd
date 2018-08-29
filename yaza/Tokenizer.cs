@@ -142,9 +142,9 @@ namespace yaza
             if (_token != token)
             {
                 if (suffix != null)
-                    throw new CodeException($"syntax error: expected {DescribeToken(token)} {suffix}, found '{TokenRaw}'", TokenPosition);
+                    throw new CodeException($"syntax error: expected {DescribeToken(token)} {suffix}, found {DescribeToken(Token, TokenRaw)}", TokenPosition);
                 else
-                    throw new CodeException($"syntax error: expected {DescribeToken(token)}, found '{TokenRaw}'", TokenPosition);
+                    throw new CodeException($"syntax error: expected {DescribeToken(token)}, found {DescribeToken(Token, TokenRaw)}", TokenPosition);
             }
         }
 
@@ -156,15 +156,15 @@ namespace yaza
 
         public CodeException Unexpected()
         {
-            return new CodeException($"syntax error: unexpected: {DescribeToken(Token)}", TokenPosition);
+            return new CodeException($"syntax error: unexpected: {DescribeToken(Token, TokenRaw)}", TokenPosition);
         }
 
         public CodeException Unexpected(string expected)
         {
-            return new CodeException($"syntax error: '{DescribeToken(Token)}', expected {expected}", TokenPosition);
+            return new CodeException($"syntax error: {DescribeToken(Token, TokenRaw)}, expected {expected}", TokenPosition);
         }
 
-        public static string DescribeToken(Token token)
+        public static string DescribeToken(Token token, string raw = null)
         {
             switch (token)
             {
@@ -206,7 +206,10 @@ namespace yaza
                 case Token.EQ: return "==";
             }
 
-            return "???";
+            if (raw != null)
+                return $"unknown token: '{raw}'";
+            else
+                return "unknown token";
        }
 
         Token GetNextToken()

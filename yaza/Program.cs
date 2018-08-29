@@ -347,6 +347,9 @@ namespace yaza
 
             Log.DumpSummary();
 
+            if (Log.ErrorCount != 0)
+                return 7;
+
             return 0;
         }
 

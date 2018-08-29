@@ -874,7 +874,7 @@ namespace yaza
             if (_tokenizer.Token == Token.OpenBrace)
                 return ParseNamedStructData();
 
-            throw new CodeException($"syntax error in expression: '{Tokenizer.DescribeToken(_tokenizer.Token)}'", _tokenizer.TokenPosition);
+            throw new CodeException($"syntax error in expression: {Tokenizer.DescribeToken(_tokenizer.Token, _tokenizer.TokenRaw)}", _tokenizer.TokenPosition);
         }
 
         ExprNode ParseUnary()

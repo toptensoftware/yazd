@@ -1,47 +1,5 @@
-                                HIGHSCORE STRUCT
-                                	NAME	DB	20 dup ?
-                                	SCORE	DW  ?
-                                ENDS
+0000: 02 00                     	DW		label
                                 
-                                
-                                
-                                ALIEN   STRUCT
-                                    POS     COORD   ?
-                                    MODE    DB      ?
-                                ENDS
-                                
-                                COORD   STRUCT
-                                    X   DB  ?
-                                    Y   DB  ?
-                                ENDS
-                                
-                                
-                                PLAYER  STRUCT
-                                    POS     COORD   ?
-                                    FRAME   DB      ?
-                                ENDS
-                                
-0000: 59 41 5A 41 21 21 21 00   	HIGHSCORE	[ ("YAZA",3 DUP '!'), 1 ]
-0008: 00 00 00 00 00 00 00 00 
-0010: 00 00 00 00 01 00 
-                                
-0016: 0F                        	DB  5*3
-0017: 0A 00                     	DW	10
-0019: 57 00 6F 00 61 00 68 00   	DW  "Woah!",0
-0021: 21 00 00 00 
-0025: 48 65 6C 6C 6F 00 48 65   	DB	3 DUP ('Hello', 0)
-002D: 6C 6C 6F 00 48 65 6C 6C 
-0035: 6F 00 
-                                
-0037: ??                        	DB		?
-0038: ?? ??                     	COORD	?
-                                
-003A: ?? ?? ??                  	ALIEN	?
-                                
-003D: 03 09 01                  	ALIEN { 
-                                		MODE: 1, 
-                                		POS: [3,9]
-                                	}
-                                
+0002: 18 FE                     label: jr $
 
-0040:
+0004:
