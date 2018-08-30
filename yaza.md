@@ -13,7 +13,7 @@ YAZA is a Z-80 assembler that generates flat binary code (as opposed to relocata
 
 ## Download
 
-[Download Zip Here](https://raw.github.com/toptensoftware/yazd/master/yazd.zip)
+[Download Zip Here](https://raw.github.com/toptensoftware/yazd/master/yaza.zip)
 
 Requires:
 
@@ -117,7 +117,7 @@ The `RADIX` directive can be used to set the default radix to either 2, 8, 10 or
     LD  HL,1000         ; 8
 
     RADIX 16            ; Select hex radix
-    LD  HL,0F           ; 16
+    LD  HL,0F           ; 15
 ~~~
 
 Note that when the hex radix is selected, numbers must still start with a digit which might mean introducing a leading `0` (ie: `0ff` not `ff`)
