@@ -1,4 +1,29 @@
-# Using YAZD
+## YAZD
+
+YAZD is a simple command line disassembler for Z80 binary code files.  It's based on the disassembler in [z80ex](http://z80ex.sourceforge.net/), ported to C#.
+
+YAZD supports the following:
+
+* Disassembly of all Z80 instructions, as supported by z80ex.
+* Code path analysis can usually tell the difference between code and data.
+* Generates labelled assembly language listings.
+* Can also generate more detailed listing files with byte code and assembly source.
+* Can detect procedure boundaries and generate call graphs
+* Can generate reference listings to all external addresses and I/O ports.
+* Can highlight all word literals (use to help find other memory address references).
+* Can generate plain text, or hyperlinked HTML output files.
+* Handles references to addresses not aligned with instruction (eg: self modifying code)
+* Data segments are listed 1 DB byte per line with ASCII character in comments.
+
+## Download
+
+[Download Zip Here](https://raw.github.com/toptensoftware/yazd/master/yazd.zip)
+
+Requires:
+
+* Windows and .NET 4.6.1 or later
+* Linux/OSX with Mono (not tested, should work)
+
 
 ## Command Line
 

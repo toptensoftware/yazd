@@ -1,4 +1,25 @@
-# Using YAZA
+## YAZA
+
+YAZA is a Z-80 assembler that generates flat binary code (as opposed to relocatable .rel files).  It's very similar to [z80asm](https://www.nongnu.org/z80asm/) but includes a bunch of enhancements:
+
+* Support for undocumented Z-80 instructions
+* Powerful expression engine
+* Support for `include` and `incbin`
+* Scoped PROCs for local symbol support
+* Struct Support
+* Macro Support
+* Parameterized EQUates
+* Bitmap data generation (eg: tile maps and PCG characters)
+
+## Download
+
+[Download Zip Here](https://raw.github.com/toptensoftware/yazd/master/yazd.zip)
+
+Requires:
+
+* Windows and .NET 4.6.1 or later
+* Linux/OSX with Mono (not tested, should work)
+
 
 ## Command Line
 
