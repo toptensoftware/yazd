@@ -5,10 +5,12 @@ YAZA is a Z-80 assembler that generates flat binary code (as opposed to relocata
 * Support for undocumented Z-80 instructions
 * Powerful expression engine
 * Support for `include` and `incbin`
-* Scoped PROCs for local symbol support
+* Conditional code compilation
+* Scoped procs (ie: local symbol declarations)
 * Struct Support
 * Macro Support
 * Parameterized EQUates
+* Expressive data declarations
 * Bitmap data generation (eg: tile maps and PCG characters)
 
 ## Download
