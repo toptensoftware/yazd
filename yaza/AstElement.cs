@@ -524,6 +524,11 @@ namespace yaza
             _content.Dump(w, indent + 1);
         }
 
+        public override void DefineSymbols(AstScope currentScope)
+        {
+            _content.DefineSymbols(currentScope);
+        }
+
         public override void Layout(AstScope currentScope, LayoutContext ctx)
         {
             _content.Layout(currentScope, ctx);
@@ -1233,7 +1238,7 @@ namespace yaza
                     // Find the bit definition
                     var bitdef = currentScope.FindSymbol($"bitpattern'{ch}'") as AstDefBits;
                     if (bitdef == null)
-                        throw new CodeException("No bit definition for character '{ch}'", SourcePosition);
+                        throw new CodeException($"No bit definition for character '{ch}'", SourcePosition);
 
                     row.Append(bitdef.GetBitPattern(currentScope));
                 }
@@ -1285,6 +1290,7 @@ namespace yaza
             }
 
             _bytes = bytes.ToArray();
+            ctx.ReserveBytes(_bytes.Length);
         }
 
         public override void Generate(AstScope currentScope, GenerateContext ctx)

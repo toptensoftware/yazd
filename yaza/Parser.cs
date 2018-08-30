@@ -451,18 +451,15 @@ namespace yaza
 
                         // Capture the field name (or could be type name)
                         var fieldDefPos = _tokenizer.TokenPosition;
-                        _tokenizer.CheckToken(Token.Identifier);
-                        var fieldName = _tokenizer.TokenString;
+                        var fieldName = (string)null;
 
-                        // Next token
-                        _tokenizer.Next();
-
-                        // No field name?  eg: "DB ?"
-                        if (_tokenizer.Token == Token.Question)
+                        if (!_tokenizer.TrySkipToken(Token.Colon))
                         {
-                            structDef.AddField(new AstFieldDefinition(fieldDefPos, null, fieldName, ParseExpressionList()));
-                            _tokenizer.SkipToken(Token.EOL);
-                            continue;
+                            _tokenizer.CheckToken(Token.Identifier);
+                            fieldName = _tokenizer.TokenString;
+
+                            // Next token
+                            _tokenizer.Next();
                         }
 
                         // Must be an identifier (for the type name)

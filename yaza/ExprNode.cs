@@ -854,7 +854,7 @@ namespace yaza
             if (targetField != null)
                 return targetField.Type.SizeOf;
 
-            throw new CodeException($"Invalid use of sizeof operator with '{Utils.TypeName(targetVal)}' parameter", SourcePosition);
+            throw new CodeException($"Invalid use of sizeof operator: must be a type or member", SourcePosition);
         }
 
         public override AddressingMode GetAddressingMode(AstScope scope)
