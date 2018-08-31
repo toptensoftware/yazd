@@ -48,7 +48,7 @@ namespace yazd
 				if (mnemonic.StartsWith("CALL "))
 					this.flags |= OpCodeFlags.Call;
 
-                if ((this.flags & OpCodeFlags.ImplicitA | OpCodeFlags.Continues)!=0)
+                if ((this.flags & OpCodeFlags.ImplicitA)!=0)
                 {
                     int spacePos = this.mnemonic.IndexOf(' ');
                     if (spacePos >= 0)

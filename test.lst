@@ -1,22 +1,4 @@
-                                bot_bullet_max  equ     4
-                                
-                                bot_bullet struct
-                                        x       byte    ?
-                                        :       byte    bot_bullet_max-1 DUP ?
-                                        y       byte    ?
-                                        :       byte    bot_bullet_max-1 DUP ?
-                                        y2      byte    ?
-                                        :       byte    bot_bullet_max-1 DUP ?
-                                        dir     byte    ?
-                                        :       byte    bot_bullet_max-1 DUP ?
-                                ends
-                                
-0000: 00 00 00 00 00 00 00 00   bot_bullets:    bot_bullet      0
-0008: 00 00 00 00 00 00 00 00 
-                                
-                                
-                                
-                                        ld      bc,sizeof(bot_bullets)-1        ; TODO
+0000: C9                        			ret a
                                 
 
-0010:
+0001:

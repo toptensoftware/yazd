@@ -2,27 +2,5 @@
   - TYPE: 'BYTE'
   - TYPE: 'WORD'
   - CONTAINER test.asm (test.asm 1,1)
-    - EQU 'bot_bullet_max' (test.asm 1,1)
-      - EQU wrapper $ => 0x0000 $ofs => 0x0000
-        - number literal 2
-    - STRUCT: 'bot_bullet' (test.asm 3,1)
-      - FIELD: 'x' byte (test.asm 4,9)
-      - FIELD: '' byte (test.asm 5,9)
-      - FIELD: 'y' byte (test.asm 6,9)
-      - FIELD: '' byte (test.asm 7,9)
-      - FIELD: 'y2' byte (test.asm 8,9)
-      - FIELD: '' byte (test.asm 9,9)
-      - FIELD: 'dir' byte (test.asm 10,9)
-      - FIELD: '' byte (test.asm 11,9)
-    - EQU 'player_bullet_max' (test.asm 14,1)
-      - EQU wrapper $ => 0x0000 $ofs => 0x0000
-        - number literal 2
-    - STRUCT: 'player_bullet' (test.asm 16,1)
-      - FIELD: 'x' byte (test.asm 17,9)
-      - FIELD: '' player_bullet_max (test.asm 18,9)
-      - FIELD: 'y' byte (test.asm 19,9)
-      - FIELD: '' player_bullet_max (test.asm 20,9)
-      - FIELD: 'y2' byte (test.asm 21,9)
-      - FIELD: '' player_bullet_max (test.asm 22,9)
-      - FIELD: 'dir' byte (test.asm 23,9)
-      - FIELD: '' player_bullet_max (test.asm 24,9)
+    - RET (test.asm 1,4)
+      - reg/cond 'a'
