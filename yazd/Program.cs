@@ -265,7 +265,7 @@ namespace yazd
 
 			// Work out the available address space
 			_addrSpaceStart = _baseAddr;
-			_addrSpaceEnd = (ushort)(_baseAddr + (code.Length - _header));
+			_addrSpaceEnd = _baseAddr + (code.Length - _header);
 
 			// Work out auto length
 			if (_len == 0)
@@ -273,7 +273,7 @@ namespace yazd
 
 			// Check specified address range
 			CheckAddress(_start);
-			CheckAddress(_start + _len);
+			CheckAddress(_start + _len - 1);
 			foreach (var addr in _entryPoints)
 				CheckAddress(addr);
 
