@@ -1221,7 +1221,7 @@ namespace yaza
         // Logical OR
         ExprNode ParseLogicalOr()
         {
-            var LHS = ParseBitwiseAnd();
+            var LHS = ParseLogicalAnd();
 
             while (true)
             {
@@ -1231,7 +1231,7 @@ namespace yaza
                     LHS = new ExprNodeBinary(pos)
                     {
                         LHS = LHS,
-                        RHS = ParseBitwiseAnd(),
+                        RHS = ParseLogicalAnd(),
                         OpName = "||",
                         Operator = ExprNodeBinary.OpLogicalOr,
                     };
