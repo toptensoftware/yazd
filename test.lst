@@ -1,4 +1,16 @@
-0000: C9                        			ret a
+                                KB_BIT(chk_bit) MACRO
+                                	LD	E, 0 + (chk_bit << 3)		; Bit code
+                                	BIT	chk_bit, B
+                                	JR	Z, send
+                                	SET	6, E
+                                send:
+                                	Nop
+                                	Nop
+                                ENDM
                                 
+0000: 1E 08 CB 48 28 02 CB F3   KB_BIT 1
+0008: 00 00 
+000A: 1E 10 CB 50 28 02 CB F3   KB_BIT 2
+0012: 00 00 
 
-0001:
+0014:

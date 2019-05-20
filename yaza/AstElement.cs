@@ -423,14 +423,15 @@ namespace yaza
         public AstLabel(string name, SourcePosition position)
         {
             _name = name;
-            _value = new ExprNodeDeferredValue(position, name);
+            _position = position;
         }
 
         string _name;
-        ExprNodeDeferredValue _value;
+        SourcePosition _position;
+
+        Dictionary<AstScope, ExprNodeDeferredValue> _valueToScopeMap = new Dictionary<AstScope, ExprNodeDeferredValue>();
 
         public string Name => _name;
-        public ExprNode Value => _value;
 
         public override void Dump(TextWriter w, int indent)
         {
@@ -439,12 +440,14 @@ namespace yaza
 
         public override void DefineSymbols(AstScope currentScope)
         {
-            currentScope.Define(_name, _value);
+            var valueInScope = new ExprNodeDeferredValue(_position, _name);
+            _valueToScopeMap.Add(currentScope, valueInScope);
+            currentScope.Define(_name, valueInScope);
         }
 
         public override void Layout(AstScope currentScope, LayoutContext ctx)
         {
-            _value.Resolve(ctx.ip);
+            _valueToScopeMap[currentScope].Resolve(ctx.ip);
         }
 
     }
