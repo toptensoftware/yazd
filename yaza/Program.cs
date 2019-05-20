@@ -93,6 +93,7 @@ namespace yaza
                         }
                         break;
 
+                    case "lst":
                     case "list":
                         if (Value != null)
                         {
@@ -207,7 +208,7 @@ namespace yaza
             Console.WriteLine("  --help                     Show these help instruction");
             Console.WriteLine("  --include:<directory>      Specifies an additional include/incbin directory");
             Console.WriteLine("  --instructionSet           Display a list of all support instructions");
-            Console.WriteLine("  --list[:<filename>]        Generate a list file");
+            Console.WriteLine("  --list[:<filename>]        Generate a list file (or, --lst)");
             Console.WriteLine("  --output:<filename>        Output file");
             Console.WriteLine("  --sym[:<filename>]         Generate a symbols file");
             Console.WriteLine("  --v                        Show version information");

@@ -129,7 +129,8 @@ namespace yazd
 						break;
 
 					case "lst":
-						_lst = true;
+                    case "list":
+                        _lst = true;
 						break;
 
 					case "lc":
@@ -214,7 +215,7 @@ namespace yazd
 			Console.WriteLine("  --len:<N>              Number of bytes to disassemble (instead of --end)");
 			Console.WriteLine("  --entry:<N>            Specifies an entry point (see below)");
 			Console.WriteLine("  --xref                 Include referenced locations of labels");
-			Console.WriteLine("  --list                 Generate a listing file (more detail, can't be assembled)");
+			Console.WriteLine("  --list                 Generate a listing file (more detail, can't be assembled) (or, --lst)");
 			Console.WriteLine("  --html                 Generates a HTML file, with hyperlinked references");
 			Console.WriteLine("  --open                 Automatically opens the generated file with default associated app");
 			Console.WriteLine("  --lowercase|lc         Render in lowercase");
