@@ -37,7 +37,8 @@ Options:
 	--len:N                Number of bytes to disassemble (instead of --end)
 	--entry:N              Specifies an entry point (see below)
 	--xref                 Include referenced locations of labels
-	--lst                  Generate a listing file (more detail, can't be assembled)
+	--list                 Generate a listing file (more detail, can't be assembled)
+	--hex:<format>         Specify hex literal formatting (options: $, dollar, &, amper, x or h)
 	--html                 Generates a HTML file, with hyperlinked references
 	--open                 Automatically opens the generated file with default associated app
 	--lowercase|lc         Render in lowercase
@@ -61,7 +62,7 @@ Response file containing arguments can be specified using the @ prefix
 
 Example:
 
-    yazd --addr:0x0400 --entry:0x1983 -lst robotf.bin robotf.lst
+    yazd --addr:0x0400 --entry:0x1983 -list robotf.bin robotf.lst
 
 ## Example Output
 
@@ -162,7 +163,7 @@ modifying code and helps to produce a listing that can be directly re-assembled.
 	L0BED:  SET     3,(HL)
 
 
-In listing mode (`--lst`), the address and byte code is included on the left:
+In listing mode (`--list`), the address and byte code is included on the left:
 
 	                                        ; Entry Point
 									        ; --- START PROC L0900 ---

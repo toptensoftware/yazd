@@ -45,7 +45,7 @@ Defining a symbol without specifying a value sets the symbol's value as `1`.
 
 Example:
 
-    yaza myprogram.asm --lst
+    yaza myprogram.asm --list
 
 ## Basics
 
