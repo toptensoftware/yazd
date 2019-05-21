@@ -2,5 +2,29 @@
   - TYPE: 'BYTE'
   - TYPE: 'WORD'
   - CONTAINER test.asm (test.asm 1,1)
-    - RET (test.asm 1,4)
-      - reg/cond 'a'
+    - SCOPE MACRO KB_BIT (test.asm 1,1)
+      - LD (test.asm 2,2)
+        - reg/cond 'E'
+        - operator +
+          - number literal 0
+          - operator <<
+            - identifier 'chk_bit'
+            - number literal 3
+      - BIT (test.asm 3,2)
+        - identifier 'chk_bit'
+        - reg/cond 'B'
+      - JR (test.asm 4,2)
+        - reg/cond 'Z'
+        - identifier 'send'
+      - SET (test.asm 5,2)
+        - number literal 6
+        - reg/cond 'E'
+      - LABEL 'send' (test.asm 6,1)
+      - NOP (test.asm 7,2)
+      - NOP (test.asm 8,2)
+    - KB_BIT (test.asm 11,1)
+      - number literal 1
+    - KB_BIT (test.asm 12,1)
+      - number literal 2
+    - db (test.asm 14,2)
+      - number literal 185

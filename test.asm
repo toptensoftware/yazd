@@ -10,3 +10,6 @@ ENDM
 
 KB_BIT 1
 KB_BIT 2
+
+	db $B9
+

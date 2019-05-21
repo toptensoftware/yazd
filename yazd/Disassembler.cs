@@ -11,20 +11,50 @@ namespace yazd
 {
 	class Disassembler
 	{
-		public static string FormatWord(ushort w)
-		{
-			var r = string.Format("{0:X4}h", w);
-			if (!char.IsDigit(r[0]))
-				r = "0" + r;
-			return r;
+        public static char HexFormat = 'h';
+
+        public static string FormatWord(ushort w)
+        {
+            switch (HexFormat)
+            {
+                case 'x':
+                    return $"0x{w:X4}";
+
+                case '$':
+                    return $"${w:X4}";
+
+                case '&':
+                    return $"&h{w:X4}";
+
+                case 'h':
+                default:
+                    var r = string.Format("{0:X4}h", w);
+                    if (!char.IsDigit(r[0]))
+                        r = "0" + r;
+                    return r;
+            }
 		}
 
 		public static string FormatByte(byte b)
 		{
-			var r = string.Format("{0:X2}h", b);
-			if (!char.IsDigit(r[0]))
-				r = "0" + r;
-			return r;
+            switch (HexFormat)
+            {
+                case 'x':
+                    return $"0x{b:X2}";
+
+                case '$':
+                    return $"${b:X2}";
+
+                case '&':
+                    return $"&h{b:X2}";
+
+                case 'h':
+                default:
+                    var r = string.Format("{0:X2}h", b);
+                    if (!char.IsDigit(r[0]))
+                        r = "0" + r;
+                    return r;
+            }
 		}
 
         public static string FormatSignedByte(sbyte b)

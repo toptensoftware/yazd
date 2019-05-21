@@ -138,6 +138,29 @@ namespace yazd
 						_lowerCase = true;
 						break;
 
+                    case "hex":
+                        switch (Value)
+                        {
+                            case "$":
+                            case "x":
+                            case "h":
+                            case "&":
+                                Disassembler.HexFormat = Value[0];
+                                break;
+
+                            case "dollar":
+                                Disassembler.HexFormat = '$';
+                                break;
+
+                            case "amper":
+                                Disassembler.HexFormat = '&';
+                                break;
+
+                            default:
+                                throw new InvalidOperationException("Invalid hex format specifier");
+                        }
+                        break;
+
 					case "reloffs":
 						_reloffs = true;
 						break;
@@ -216,6 +239,7 @@ namespace yazd
 			Console.WriteLine("  --entry:<N>            Specifies an entry point (see below)");
 			Console.WriteLine("  --xref                 Include referenced locations of labels");
 			Console.WriteLine("  --list                 Generate a listing file (more detail, can't be assembled) (or, --lst)");
+            Console.WriteLine("  --hex:<format>         Specify hex literal formatting (options: $, dollar, &, amper, x or h)");
 			Console.WriteLine("  --html                 Generates a HTML file, with hyperlinked references");
 			Console.WriteLine("  --open                 Automatically opens the generated file with default associated app");
 			Console.WriteLine("  --lowercase|lc         Render in lowercase");
