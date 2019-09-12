@@ -1,15 +1,6 @@
-KB_BIT(chk_bit) MACRO
-	LD	E, 0 + (chk_bit << 3)		; Bit code
-	BIT	chk_bit, B
-	JR	Z, send
-	SET	6, E
-send:
-	Nop
-	Nop
-ENDM
-
-KB_BIT 1
-KB_BIT 2
-
-	db $B9
-
+		pop     hl
+        ld      a,$20           ; ' '
+        rst     0x10
+L00C1:  ex      de,hl
+        pop     hl
+        inc     hl

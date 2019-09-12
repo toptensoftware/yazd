@@ -268,7 +268,7 @@ namespace yazd
 			new OpCode( "CALL NZ,@"         , 10 , 17 , OpCodeFlags.Jumps | OpCodeFlags.Continues), /* C4 */
 			new OpCode( "PUSH BC"           , 11 ,  0 ), /* C5 */
 			new OpCode( "ADD A,#"           ,  7 ,  0 ), /* C6 */
-			new OpCode( "RST 0x00"          , 11 ,  0 , OpCodeFlags.Restarts), /* C7 */
+			new OpCode( "RST 0x00"          , 11 ,  0 , OpCodeFlags.Restarts | OpCodeFlags.Continues), /* C7 */
 			new OpCode( "RET Z"             ,  5 , 11 , OpCodeFlags.Returns | OpCodeFlags.Continues), /* C8 */
 			new OpCode( "RET"               , 10 ,  0 , OpCodeFlags.Returns ), /* C9 */
 			new OpCode( "JP Z,@"            , 10 ,  0 , OpCodeFlags.Jumps | OpCodeFlags.Continues), /* CA */
@@ -276,7 +276,7 @@ namespace yazd
 			new OpCode( "CALL Z,@"          , 10 , 17 , OpCodeFlags.Jumps | OpCodeFlags.Continues), /* CC */
 			new OpCode( "CALL @"            , 17 ,  0 , OpCodeFlags.Jumps | OpCodeFlags.Continues), /* CD */
 			new OpCode( "ADC A,#"           ,  7 ,  0 ), /* CE */
-			new OpCode( "RST 0x08"          , 11 ,  0 , OpCodeFlags.Restarts), /* CF */
+			new OpCode( "RST 0x08"          , 11 ,  0 , OpCodeFlags.Restarts | OpCodeFlags.Continues), /* CF */
 			new OpCode( "RET NC"            ,  5 , 11 , OpCodeFlags.Returns | OpCodeFlags.Continues), /* D0 */
 			new OpCode( "POP DE"            , 10 ,  0 ), /* D1 */
 			new OpCode( "JP NC,@"           , 10 ,  0 , OpCodeFlags.Jumps | OpCodeFlags.Continues), /* D2 */
@@ -284,7 +284,7 @@ namespace yazd
 			new OpCode( "CALL NC,@"         , 10 , 17 , OpCodeFlags.Jumps | OpCodeFlags.Continues), /* D4 */
 			new OpCode( "PUSH DE"           , 11 ,  0 ), /* D5 */
 			new OpCode( "SUB #"             ,  7 ,  0 ), /* D6 */
-			new OpCode( "RST 0x10"          , 11 ,  0 , OpCodeFlags.Restarts), /* D7 */
+			new OpCode( "RST 0x10"          , 11 ,  0 , OpCodeFlags.Restarts | OpCodeFlags.Continues), /* D7 */
 			new OpCode( "RET C"             ,  5 , 11 , OpCodeFlags.Returns | OpCodeFlags.Continues), /* D8 */
 			new OpCode( "EXX"               ,  4 ,  0 ), /* D9 */
 			new OpCode( "JP C,@"            , 10 ,  0 , OpCodeFlags.Jumps | OpCodeFlags.Continues), /* DA */
@@ -292,7 +292,7 @@ namespace yazd
 			new OpCode( "CALL C,@"          , 10 , 17 , OpCodeFlags.Jumps | OpCodeFlags.Continues), /* DC */
 			new OpCode( "shift DD"          ,  0 ,  0 ), /* DD */
 			new OpCode( "SBC A,#"           ,  7 ,  0 ), /* DE */
-			new OpCode( "RST 0x18"          , 11 ,  0 , OpCodeFlags.Restarts), /* DF */
+			new OpCode( "RST 0x18"          , 11 ,  0 , OpCodeFlags.Restarts | OpCodeFlags.Continues), /* DF */
 			new OpCode( "RET PO"            ,  5 , 11 , OpCodeFlags.Returns | OpCodeFlags.Continues), /* E0 */
 			new OpCode( "POP HL"            , 10 ,  0 ), /* E1 */
 			new OpCode( "JP PO,@"           , 10 ,  0 , OpCodeFlags.Jumps | OpCodeFlags.Continues), /* E2 */
@@ -300,7 +300,7 @@ namespace yazd
 			new OpCode( "CALL PO,@"         , 10 , 17 , OpCodeFlags.Jumps | OpCodeFlags.Continues), /* E4 */
 			new OpCode( "PUSH HL"           , 11 ,  0 ), /* E5 */
 			new OpCode( "AND #"             ,  7 ,  0 ), /* E6 */
-			new OpCode( "RST 0x20"          , 11 ,  0 , OpCodeFlags.Restarts), /* E7 */
+			new OpCode( "RST 0x20"          , 11 ,  0 , OpCodeFlags.Restarts | OpCodeFlags.Continues), /* E7 */
 			new OpCode( "RET PE"            ,  5 , 11 , OpCodeFlags.Returns | OpCodeFlags.Continues), /* E8 */
 			new OpCode( "JP (HL)"             ,  4 ,  0 , OpCodeFlags.Jumps), /* E9 */
 			new OpCode( "JP PE,@"           , 10 ,  0 , OpCodeFlags.Jumps | OpCodeFlags.Continues), /* EA */
@@ -308,7 +308,7 @@ namespace yazd
 			new OpCode( "CALL PE,@"         , 10 , 17 , OpCodeFlags.Jumps | OpCodeFlags.Continues), /* EC */
 			new OpCode( "shift ED"          ,  0 ,  0 ), /* ED */
 			new OpCode( "XOR #"             ,  7 ,  0 ), /* EE */
-			new OpCode( "RST 0x28"          , 11 ,  0 , OpCodeFlags.Restarts), /* EF */
+			new OpCode( "RST 0x28"          , 11 ,  0 , OpCodeFlags.Restarts | OpCodeFlags.Continues), /* EF */
 			new OpCode( "RET P"             ,  5 , 11 , OpCodeFlags.Returns | OpCodeFlags.Continues), /* F0 */
 			new OpCode( "POP AF"            , 10 ,  0 ), /* F1 */
 			new OpCode( "JP P,@"            , 10 ,  0 , OpCodeFlags.Jumps | OpCodeFlags.Continues), /* F2 */
@@ -316,7 +316,7 @@ namespace yazd
 			new OpCode( "CALL P,@"          , 10 , 17 , OpCodeFlags.Jumps | OpCodeFlags.Continues), /* F4 */
 			new OpCode( "PUSH AF"           , 11 ,  0 ), /* F5 */
 			new OpCode( "OR #"              ,  7 ,  0 ), /* F6 */
-			new OpCode( "RST 0x30"          , 11 ,  0 , OpCodeFlags.Restarts), /* F7 */
+			new OpCode( "RST 0x30"          , 11 ,  0 , OpCodeFlags.Restarts | OpCodeFlags.Continues), /* F7 */
 			new OpCode( "RET M"             ,  5 , 11 , OpCodeFlags.Returns | OpCodeFlags.Continues), /* F8 */
 			new OpCode( "LD SP,HL"          ,  6 ,  0 ), /* F9 */
 			new OpCode( "JP M,@"            , 10 ,  0 , OpCodeFlags.Jumps | OpCodeFlags.Continues), /* FA */
@@ -324,7 +324,7 @@ namespace yazd
 			new OpCode( "CALL M,@"          , 10 , 17 , OpCodeFlags.Jumps | OpCodeFlags.Continues), /* FC */
 			new OpCode( "shift FD"          ,  4 ,  0 ), /* FD */
 			new OpCode( "CP #"              ,  7 ,  0 ), /* FE */
-			new OpCode( "RST 0x38"          , 11 ,  0 , OpCodeFlags.Restarts), /* FF */
+			new OpCode( "RST 0x38"          , 11 ,  0 , OpCodeFlags.Restarts | OpCodeFlags.Continues), /* FF */
 		};
 
 
