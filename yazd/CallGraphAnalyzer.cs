@@ -67,7 +67,7 @@ namespace yazd
 				p.lengthInBytes = i.addr - p.firstInstruction.addr + i.bytes;
 
 				// If this is a return instruction, mark the proc as having at least one return
-				if ((i.opCode.flags & OpCodeFlags.Returns)!=0)
+				if (i.opCode != null && (i.opCode.flags & OpCodeFlags.Returns)!=0)
 				{
 					p.hasLocalReturn = true;
 				}
