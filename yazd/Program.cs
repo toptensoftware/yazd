@@ -95,6 +95,7 @@ namespace yazd
 						return false;
 
 					case "v":
+					case "version":
 						ShowLogo();
 						return false;
 

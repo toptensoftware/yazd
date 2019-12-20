@@ -1,66 +1,28 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Project="../version.props" />
+
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">x86</Platform>
-    <ProductVersion>8.0.30703</ProductVersion>
-    <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>{6E1516F5-39AE-4490-8A88-B15CBC10727F}</ProjectGuid>
     <OutputType>Exe</OutputType>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <TargetFrameworks>netcoreapp2.1;net46</TargetFrameworks>
     <RootNamespace>yazd</RootNamespace>
-    <AssemblyName>yazd</AssemblyName>
-    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
-    <TargetFrameworkProfile>Client</TargetFrameworkProfile>
-    <FileAlignment>512</FileAlignment>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <Authors>Topten Software</Authors>
+    <PackageLicenseUrl>https://github.com/toptensoftware/yazd</PackageLicenseUrl>
+    <PackageProjectUrl>https://github.com/toptensoftware/yazd</PackageProjectUrl>
+    <PackageIconUrl>https://www.toptensoftware.com/nuget_icon.png</PackageIconUrl>
+    <PackageTags>Z80,Disassembler</PackageTags>
+    <Description>Easy to use Z80 disassembler.</Description>
+    <Company>Topten Software</Company>
+    <GenerateFullPaths>True</GenerateFullPaths>
+    <OutputPath>..\Build\$(Configuration)\$(MSBuildProjectName)</OutputPath>
+    <IntermediateOutputPath>..\Build\$(Configuration)\$(MSBuildProjectName)\$(TargetFramework)\obj</IntermediateOutputPath>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>yazd</ToolCommandName>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'">
-    <DebugSymbols>true</DebugSymbols>
-    <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <DebugType>full</DebugType>
-    <PlatformTarget>AnyCPU</PlatformTarget>
-    <ErrorReport>prompt</ErrorReport>
-    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|AnyCPU'">
-    <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
-    <Optimize>true</Optimize>
-    <DebugType>pdbonly</DebugType>
-    <PlatformTarget>AnyCPU</PlatformTarget>
-    <ErrorReport>prompt</ErrorReport>
-    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
-  </PropertyGroup>
+
   <ItemGroup>
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Xml.Linq" />
-    <Reference Include="System.Data.DataSetExtensions" />
-    <Reference Include="Microsoft.CSharp" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.Xml" />
+    <Compile Include="..\version.cs" Link="version.cs" />
   </ItemGroup>
-  <ItemGroup>
-    <Compile Include="CallGraphAnalyzer.cs" />
-    <Compile Include="Disassembler.cs" />
-    <Compile Include="Instruction.cs" />
-    <Compile Include="OpCodes.cs" />
-    <Compile Include="Proc.cs" />
-    <Compile Include="Program.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="TabbedTextWriter.cs" />
-    <Compile Include="Utils.cs" />
-  </ItemGroup>
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <PropertyGroup>
-    <PostBuildEvent>if $(ConfigurationName) == Release zip ..\..\..\yazd.zip yazd.exe</PostBuildEvent>
-  </PropertyGroup>
-  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
-       Other similar extension points exist, see Microsoft.Common.targets.
-  <Target Name="BeforeBuild">
-  </Target>
-  <Target Name="AfterBuild">
-  </Target>
-  -->
+  
 </Project>
