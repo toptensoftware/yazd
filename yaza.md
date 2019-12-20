@@ -27,6 +27,9 @@ Requires:
 
 > dotnet tool install --global yaza
 
+Note: if this is the first global tool you've installed, you'll probably need to logout/in for the 
+changes to you path by dotnet to be picked up.
+
 
 
 ## Command Line
