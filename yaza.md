@@ -23,6 +23,12 @@ Requires:
 * Linux/OSX with Mono (not tested, should work)
 
 
+## Install as .NET Core Global Tool
+
+> dotnet tool install --global yaza
+
+
+
 ## Command Line
 
 	yaza sourceFile.asm [options] [@responsefile]

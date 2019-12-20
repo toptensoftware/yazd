@@ -24,6 +24,10 @@ Requires:
 * Windows and .NET 4.6.1 or later
 * Linux/OSX with Mono (not tested, should work)
 
+## Install as .NET Core Global Tool
+
+> dotnet tool install --global yazd
+
 
 ## Command Line
 
