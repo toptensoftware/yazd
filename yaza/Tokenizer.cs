@@ -95,7 +95,7 @@ namespace yaza
 
         public bool IsIdentifier(string str)
         {
-            return _token == Token.Identifier && string.Compare(str, _string, true) == 0;
+            return _token == Token.Identifier && string.Equals(str, _string, StringComparison.OrdinalIgnoreCase);
         }
 
         public bool TrySkipIdentifier(string str)
